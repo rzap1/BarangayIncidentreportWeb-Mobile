@@ -9,8 +9,19 @@ import {
   Alert,
 } from "react-native";
 import axios from "axios";
+import { useNavigation } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+
+type RootStackParamList = {
+  Login: undefined;
+  Home: { username: string };
+};
+
+type NavigationProp = NativeStackNavigationProp<RootStackParamList, "Login">;
 
 const Login: React.FC = () => {
+  const navigation = useNavigation<NavigationProp>();
+
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -29,8 +40,7 @@ const Login: React.FC = () => {
       });
 
       if (response.data.success) {
-        Alert.alert("Success", response.data.message);
-        // Navigate to next screen here
+        navigation.navigate("Home", { username }); // ✅ navigate to Home
       }
     } catch (error: any) {
       if (error.response?.status === 401) {
@@ -73,7 +83,11 @@ const Login: React.FC = () => {
           />
         </View>
 
-        <TouchableOpacity style={styles.loginButton} onPress={handleLogin} disabled={loading}>
+        <TouchableOpacity
+          style={styles.loginButton}
+          onPress={handleLogin}
+          disabled={loading}
+        >
           {loading ? (
             <ActivityIndicator color="#000" />
           ) : (
@@ -84,7 +98,6 @@ const Login: React.FC = () => {
     </View>
   );
 };
-
 
 const styles = StyleSheet.create({
   loginContainer: {
