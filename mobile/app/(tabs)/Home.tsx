@@ -25,10 +25,10 @@ const Home: React.FC = () => {
 
   const [sidebarVisible, setSidebarVisible] = useState(false);
   const [userMenuVisible, setUserMenuVisible] = useState(false);
+  const [notificationCount, setNotificationCount] = useState(1);
 
   const sidebarAnim = useRef(new Animated.Value(-screenWidth * 0.5)).current;
 
-  // Sidebar slide animation
   useEffect(() => {
     Animated.timing(sidebarAnim, {
       toValue: sidebarVisible ? 0 : -screenWidth * 0.5,
@@ -37,8 +37,14 @@ const Home: React.FC = () => {
     }).start();
   }, [sidebarVisible]);
 
+  const handleScreenPress = () => {
+    if (userMenuVisible) {
+      setUserMenuVisible(false);
+    }
+  };
+
   return (
-    <TouchableWithoutFeedback onPress={() => setUserMenuVisible(false)}>
+    <TouchableWithoutFeedback onPress={handleScreenPress}>
       <View style={styles.container}>
         {/* Sidebar Backdrop */}
         {sidebarVisible && (
@@ -68,15 +74,31 @@ const Home: React.FC = () => {
           <TouchableOpacity onPress={() => setSidebarVisible(true)}>
             <Ionicons name="menu" size={24} color="#fff" />
           </TouchableOpacity>
+
           <Text style={styles.headerTitle}>HOME</Text>
-          <TouchableOpacity
-            onPress={(e) => {
-              e.stopPropagation();
-              setUserMenuVisible(!userMenuVisible);
-            }}
-          >
-            <Ionicons name="person-circle-outline" size={30} color="#fff" />
-          </TouchableOpacity>
+
+          <View style={styles.headerRight}>
+            <TouchableOpacity
+              style={styles.iconButton}
+              onPress={() => {
+                console.log("Notification clicked");
+              }}
+            >
+              <Ionicons name="notifications-outline" size={24} color="#fff" />
+              {notificationCount > 0 && (
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>{notificationCount}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.iconButton}
+              onPress={() => setUserMenuVisible(!userMenuVisible)}
+            >
+              <Ionicons name="person-circle-outline" size={30} color="#fff" />
+            </TouchableOpacity>
+          </View>
 
           {userMenuVisible && (
             <View style={styles.userMenu}>
@@ -84,17 +106,11 @@ const Home: React.FC = () => {
                 style={styles.userMenuItem}
                 onPress={() => {
                   setUserMenuVisible(false);
-                  // Placeholder for navigation
                 }}
               >
                 <Text style={styles.userMenuText}>Profile</Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.userMenuItem}
-                onPress={() => {
-                  // Implement logout action
-                }}
-              >
+              <TouchableOpacity style={styles.userMenuItem}>
                 <Text style={styles.userMenuText}>Logout</Text>
               </TouchableOpacity>
             </View>
@@ -131,6 +147,31 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
   },
   headerTitle: { fontWeight: "bold", fontSize: 18, color: "#fff" },
+  headerRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  iconButton: {
+    marginLeft: 10,
+  },
+  badge: {
+    position: "absolute",
+    top: -5,
+    right: -5,
+    backgroundColor: "red",
+    borderRadius: 10,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    minWidth: 16,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  badgeText: {
+    color: "white",
+    fontSize: 10,
+    fontWeight: "bold",
+  },
   backdrop: {
     position: "absolute",
     width: "100%",
@@ -172,7 +213,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 5,
     elevation: 5,
-    zIndex: 3,
   },
   userMenuItem: { paddingVertical: 5 },
   userMenuText: { fontWeight: "bold" },
