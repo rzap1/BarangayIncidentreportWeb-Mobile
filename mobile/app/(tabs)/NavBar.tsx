@@ -77,7 +77,7 @@ const NavBar: React.FC<NavBarProps> = ({ username }) => {
           <Ionicons name="menu" size={24} color="#fff" />
         </TouchableOpacity>
 
-        <Text style={styles.headerTitle}>//Title</Text>
+      
 
         <View style={styles.headerRight}>
           <TouchableOpacity
