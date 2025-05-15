@@ -24,27 +24,68 @@ type NavigationProp = NativeStackNavigationProp<
   "IncidentReport"
 >;
 
+const DEFAULT_COORDS = {
+  latitude: 14.56535797150489,
+  longitude: 121.61706714218529,
+};
+
 const IncidentReport: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const [incidentType, setIncidentType] = useState("");
   const [locationLoaded, setLocationLoaded] = useState(false);
-  const [currentLocation, setCurrentLocation] =
-    useState<Location.LocationObject | null>(null);
-  const [mapRegion, setMapRegion] = useState<Region | null>(null);
-  const [pinLocation, setPinLocation] = useState<{
-    latitude: number;
-    longitude: number;
-  } | null>(null);
-  const [latInput, setLatInput] = useState<string>("");
-  const [longInput, setLongInput] = useState<string>("");
+  const [mapRegion, setMapRegion] = useState<Region>({
+    latitude: DEFAULT_COORDS.latitude,
+    longitude: DEFAULT_COORDS.longitude,
+    latitudeDelta: 0.02,
+    longitudeDelta: 0.02,
+  });
+  const [pinLocation, setPinLocation] = useState(DEFAULT_COORDS);
+  const [latInput, setLatInput] = useState(DEFAULT_COORDS.latitude.toString());
+  const [longInput, setLongInput] = useState(DEFAULT_COORDS.longitude.toString());
   const [image, setImage] = useState<string | null>(null);
+  const [currentDateTime, setCurrentDateTime] = useState(new Date());
 
   useEffect(() => {
-  const loadLocation = async () => {
+    // Always set default location on mount
+    setMapRegion({
+      latitude: DEFAULT_COORDS.latitude,
+      longitude: DEFAULT_COORDS.longitude,
+      latitudeDelta: 0.02,
+      longitudeDelta: 0.02,
+    });
+    setPinLocation(DEFAULT_COORDS);
+    setLatInput(DEFAULT_COORDS.latitude.toString());
+    setLongInput(DEFAULT_COORDS.longitude.toString());
+    setLocationLoaded(true);
+  }, []);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentDateTime(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const formatDateTime12Hour = (date: Date) => {
+    return date.toLocaleString("en-US", {
+      hour12: true,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
+  };
+
+  const formattedDateTime = formatDateTime12Hour(currentDateTime);
+
+  const handleUseCurrentLocation = async () => {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== "granted") {
-        throw new Error("Permission denied");
+        Alert.alert("Permission denied", "Location permission is required.");
+        return;
       }
 
       const location = await Location.getCurrentPositionAsync({
@@ -58,44 +99,6 @@ const IncidentReport: React.FC = () => {
         longitudeDelta: 0.02,
       };
 
-      setCurrentLocation(location);
-      setMapRegion(region);
-    } catch (error) {
-      // Fallback to Manila if there's no permission or location error
-      const manilaRegion = {
-        latitude: 14.5995,
-        longitude: 120.9842,
-        latitudeDelta: 0.02,
-        longitudeDelta: 0.02,
-      };
-      setMapRegion(manilaRegion);
-      setPinLocation({
-        latitude: manilaRegion.latitude,
-        longitude: manilaRegion.longitude,
-      });
-      setLatInput(manilaRegion.latitude.toString());
-      setLongInput(manilaRegion.longitude.toString());
-    } finally {
-      setLocationLoaded(true);
-    }
-  };
-
-  loadLocation();
-}, []);
-
-
-  const handleUseCurrentLocation = async () => {
-    try {
-      const location = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.High,
-      });
-      const region = {
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude,
-        latitudeDelta: 0.02,
-        longitudeDelta: 0.02,
-      };
-      setCurrentLocation(location);
       setMapRegion(region);
       setPinLocation({
         latitude: location.coords.latitude,
@@ -141,10 +144,42 @@ const IncidentReport: React.FC = () => {
     setImage(null);
   };
 
-  const handleSubmit = () => {
-    console.log("Submit pressed", { incidentType, currentLocation });
-    navigation.goBack();
-  };
+  const handleSubmit = async () => {
+  try {
+    const response = await fetch("http://192.168.117.28:3001/api/incidents", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ incidentType, pinLocation, datetime: formattedDateTime, image }),
+    });
+
+    const text = await response.text(); // get raw response text
+    console.log("Response text:", text);
+
+    // Now parse json safely:
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (e) {
+      throw new Error("Response is not valid JSON");
+    }
+
+    if (response.ok) {
+      Alert.alert("Success", "Incident reported successfully", [
+        { text: "OK", onPress: () => navigation.goBack() },
+      ]);
+    } else {
+      Alert.alert("Error", data.error || "Failed to report incident");
+    }
+  } catch (error) {
+    let errorMessage = "Network error";
+    if (error instanceof Error) {
+      errorMessage += ": " + error.message;
+    }
+    Alert.alert("Error", errorMessage);
+  }
+};
+
+
 
   return (
     <View style={styles.container}>
@@ -162,17 +197,21 @@ const IncidentReport: React.FC = () => {
           placeholder="Enter incident type"
         />
 
+        <Text style={styles.label}>Current Date & Time:</Text>
+        <TextInput
+          style={[styles.input, { backgroundColor: "#e0e0e0" }]}
+          value={formattedDateTime}
+          editable={false}
+        />
+
         <View style={styles.mapContainer}>
           {!locationLoaded ? (
             <ActivityIndicator size="large" color="#999" />
-          ) : mapRegion ? (
+          ) : (
             <MapView
-              key={`${mapRegion.latitude}-${mapRegion.longitude}`}
               style={styles.map}
               provider={PROVIDER_GOOGLE}
-              initialRegion={mapRegion}
-              showsUserLocation={true}
-              loadingEnabled
+              region={mapRegion}
               onPress={handleMapPress}
             >
               {pinLocation && (
@@ -181,8 +220,6 @@ const IncidentReport: React.FC = () => {
                 </Marker>
               )}
             </MapView>
-          ) : (
-            <Text>Unable to load map</Text>
           )}
         </View>
 
@@ -206,7 +243,15 @@ const IncidentReport: React.FC = () => {
           />
           <Text style={styles.attachPhotoButtonText}>ATTACH PHOTO</Text>
         </TouchableOpacity>
+          <View style={[styles.inputGroup, { display: "none" }]}>
+          <Text style={styles.inputLabel}>Latitude</Text>
+          <TextInput style={styles.input} value={latInput} editable={false} />
+        </View>
 
+        <View style={[styles.inputGroup, { display: "none" }]}>
+          <Text style={styles.inputLabel}>Longitude</Text>
+          <TextInput style={styles.input} value={longInput} editable={false} />
+        </View>
         {image && (
           <View style={styles.imageSection}>
             <View style={styles.imageLabelRow}>
@@ -219,16 +264,7 @@ const IncidentReport: React.FC = () => {
           </View>
         )}
 
-        {/* Hidden inputs */}
-        <View style={[styles.inputGroup, { display: "none" }]}>
-          <Text style={styles.inputLabel}>Latitude</Text>
-          <TextInput style={styles.input} value={latInput} editable={false} />
-        </View>
-
-        <View style={[styles.inputGroup, { display: "none" }]}>
-          <Text style={styles.inputLabel}>Longitude</Text>
-          <TextInput style={styles.input} value={longInput} editable={false} />
-        </View>
+        
 
         <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
           <Text style={styles.submitButtonText}>SUBMIT</Text>

@@ -6,7 +6,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// ✅ MySQL connection
+// MySQL connection
 const db = mysql.createConnection({
   host: "localhost",
   user: "root",        // replace with your MySQL user
@@ -22,7 +22,7 @@ db.connect((err) => {
   }
 });
 
-// ✅ Login route
+// Login route (your existing code)
 app.post("/login", (req, res) => {
   const { username, password } = req.body;
 
@@ -45,20 +45,54 @@ app.post("/login", (req, res) => {
   });
 });
 
-// ✅ Fetch incidents route
+// Fetch incidents route
 app.get("/api/incidents", (req, res) => {
-  const sql = "SELECT * FROM incident_report"; // Query to fetch all incidents from the table
+  const sql = "SELECT * FROM incident_report";
   db.query(sql, (err, results) => {
     if (err) {
       console.error("❌ SQL error:", err);
       return res.status(500).json({ error: "Failed to fetch incidents" });
     }
-    res.json(results);  // Return the results from the incident_report table
+    res.json(results);
   });
 });
 
+// ** ADD POST route for incident insertion **
+app.post("/api/incidents", (req, res) => {
+  const { incidentType, pinLocation, datetime, image } = req.body;
 
-// ✅ Start server
+  // Basic validation
+  if (!incidentType || !pinLocation || !datetime) {
+    return res.status(400).json({ error: "Missing required fields" });
+  }
+
+  // Example insert query - adjust column names and table name as needed
+  const sql = `
+    INSERT INTO incident_report (incident_type, latitude, longitude, datetime, image)
+    VALUES (?, ?, ?, ?, ?)
+  `;
+
+  db.query(
+    sql,
+    [
+      incidentType,
+      pinLocation.latitude,
+      pinLocation.longitude,
+      datetime,
+      image || null, // allow null if no image
+    ],
+    (err, result) => {
+      if (err) {
+        console.error("❌ SQL insert error:", err);
+        return res.status(500).json({ error: "Failed to insert incident" });
+      }
+
+      res.json({ success: true, message: "Incident reported", id: result.insertId });
+    }
+  );
+});
+
+// Start server
 app.listen(3001, () => {
   console.log("✅ Server running on http://localhost:3001");
 });
