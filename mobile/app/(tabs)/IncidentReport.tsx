@@ -146,7 +146,7 @@ const IncidentReport: React.FC = () => {
 
   const handleSubmit = async () => {
   try {
-    const response = await fetch("http://192.168.117.28:3001/api/incidents", {
+    const response = await fetch("http://192.168.138.28:3001/api/incidents", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ incidentType, pinLocation, datetime: formattedDateTime, image }),

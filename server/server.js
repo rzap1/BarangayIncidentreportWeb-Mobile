@@ -22,7 +22,7 @@ db.connect((err) => {
   }
 });
 
-// Login route (your existing code)
+// Login route
 app.post("/login", (req, res) => {
   const { username, password } = req.body;
 
@@ -37,13 +37,26 @@ app.post("/login", (req, res) => {
       return res.status(500).json({ error: "Database error" });
     }
 
-    if (results.length > 0) {
-      res.json({ success: true, message: "Login successful" });
+    if (results.length === 0) {
+      // No matching user
+      return res.status(401).json({ error: "Invalid username or password" });
+    }
+
+    const user = results[0];
+
+    if (user.STATUS === "Verified") {
+      // User verified, login allowed
+      return res.json({ success: true, message: "Login successful" });
+    } else if (user.STATUS === "Pending") {
+      // User not verified yet, reject login
+      return res.status(403).json({ error: "Account status is Pending. Please verify your account." });
     } else {
-      res.status(401).json({ error: "Invalid username or password" });
+      // Any other status - optional handling
+      return res.status(403).json({ error: `Account status "${user.STATUS}" does not allow login.` });
     }
   });
 });
+
 
 // Fetch incidents route
 app.get("/api/incidents", (req, res) => {
@@ -91,6 +104,32 @@ app.post("/api/incidents", (req, res) => {
     }
   );
 });
+
+// Register route
+app.post("/register", (req, res) => {
+  const { username, password, role } = req.body;
+  const status = "Pending"; // Default status
+  if (!username || !password || !role) {
+    return res.status(400).json({ success: false, message: "Missing required fields" });
+  }
+
+  
+
+  const sql = "INSERT INTO users (USER, PASSWORD, ROLE, STATUS) VALUES (?, ?, ?, ?)";
+  db.query(sql, [username, password, role, status], (err, result) => {
+    if (err) {
+      if (err.code === "ER_DUP_ENTRY") {
+        return res.status(409).json({ success: false, message: "Username already exists" });
+      }
+      console.error("❌ SQL insert error:", err);
+      return res.status(500).json({ success: false, message: "Database error" });
+    }
+
+    res.json({ success: true, message: "User registered successfully" });
+  });
+});
+
+
 
 // Start server
 app.listen(3001, () => {

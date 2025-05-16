@@ -108,9 +108,20 @@ const NavBar: React.FC<NavBarProps> = ({ username }) => {
             >
               <Text style={styles.userMenuText}>Profile</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.userMenuItem}>
-              <Text style={styles.userMenuText}>Logout</Text>
+
+            <TouchableOpacity
+                style={styles.userMenuItem}
+                onPress={() => {
+                  setUserMenuVisible(false);
+                  navigation.reset({
+                    index: 0,
+                    routes: [{ name: "Login" }],
+                  });
+                }}
+              >
+                <Text style={styles.userMenuText}>Logout</Text>
             </TouchableOpacity>
+
           </View>
         )}
       </View>

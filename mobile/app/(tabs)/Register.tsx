@@ -11,6 +11,7 @@ import {
 import axios from "axios";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { Picker } from "@react-native-picker/picker";
 
 type RootStackParamList = {
   Login: undefined;
@@ -20,14 +21,15 @@ type RootStackParamList = {
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-const Login: React.FC = () => {
+const Register: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
 
-  const [username, setUsername] = useState("admin");
-  const [password, setPassword] = useState("admin");  
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [role, setRole] = useState("Resident");
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = async () => {
+  const handleRegister = async () => {
     if (!username || !password) {
       Alert.alert("Missing fields", "Please enter username and password");
       return;
@@ -35,32 +37,29 @@ const Login: React.FC = () => {
 
     setLoading(true);
     try {
-        const response = await axios.post("http://192.168.138.28:3001/login", {
-          username,
-          password,
-        });
+      const response = await axios.post("http://192.168.138.28:3001/register", {
+        username,
+        password,
+        role,
+      });
 
-        if (response.data.success) {
-          navigation.navigate("Home", { username });
-        }
-      } catch (error: any) {
-        if (error.response?.status === 401) {
-          Alert.alert("Login Failed", "Invalid username or password");
-        } else if (error.response?.status === 403) {
-          Alert.alert("Login Failed", error.response.data.error);
-        } else {
-          Alert.alert("Error", "Something went wrong. Try again later.");
-          console.error(error);
-        }
+      if (response.data.success) {
+        Alert.alert("Success", "Account created successfully");
+        navigation.replace("Login");
+      } else {
+        Alert.alert("Error", response.data.message || "Registration failed");
       }
- finally {
+    } catch (error: any) {
+      Alert.alert("Error", "Something went wrong. Try again later.");
+      console.error(error);
+    } finally {
       setLoading(false);
     }
   };
 
   return (
-    <View style={styles.loginContainer}>
-      <View style={styles.loginBox}>
+    <View style={styles.container}>
+      <View style={styles.box}>
         <View style={styles.logoCircle}>
           <Text style={styles.logoText}>LOGO</Text>
         </View>
@@ -71,7 +70,7 @@ const Login: React.FC = () => {
             style={styles.inputBox}
             value={username}
             onChangeText={setUsername}
-            placeholder="Enter username"
+            placeholder="Choose a username"
             autoCapitalize="none"
           />
         </View>
@@ -82,39 +81,53 @@ const Login: React.FC = () => {
             style={styles.inputBox}
             value={password}
             onChangeText={setPassword}
-            placeholder="Enter password"
+            placeholder="Create a password"
             secureTextEntry
           />
         </View>
 
+        <View style={styles.inputGroup}>
+          <Text style={styles.inputLabel}>Account Type</Text>
+          <View style={styles.pickerContainer}>
+            <Picker
+              selectedValue={role}
+              onValueChange={(itemValue) => setRole(itemValue)}
+              style={styles.picker}
+            >
+              <Picker.Item label="Resident" value="Resident" />
+              <Picker.Item label="Tanod" value="Tanod" />
+            </Picker>
+          </View>
+        </View>
+
         <TouchableOpacity
           style={styles.loginButton}
-          onPress={handleLogin}
+          onPress={handleRegister}
           disabled={loading}
         >
           {loading ? (
             <ActivityIndicator color="#000" />
           ) : (
-            <Text style={styles.loginButtonText}>Login</Text>
+            <Text style={styles.loginButtonText}>Create</Text>
           )}
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => navigation.replace("Register")}>
-          <Text>Create Account</Text>
-        </TouchableOpacity>
 
+        <TouchableOpacity onPress={() => navigation.replace("Login")}>
+          <Text>Back to Login</Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  loginContainer: {
+  container: {
     flex: 1,
     backgroundColor: "#fff",
     justifyContent: "center",
     alignItems: "center",
   },
-  loginBox: {
+  box: {
     width: "80%",
     alignItems: "center",
   },
@@ -149,6 +162,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     fontWeight: "bold",
   },
+    pickerContainer: {
+    width: "100%",
+    height: 45, // Match TextInput height
+    backgroundColor: "#d9d9d9",
+    borderRadius: 25,
+    justifyContent: "center", // Ensures vertical alignment
+    paddingHorizontal: 10, // Add some padding
+    },
+
+    picker: {
+    width: "100%",
+    color: "#000",
+    },
+
   loginButton: {
     width: 120,
     height: 40,
@@ -164,4 +191,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default Login;
+export default Register;

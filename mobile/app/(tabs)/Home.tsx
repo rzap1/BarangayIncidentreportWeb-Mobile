@@ -13,7 +13,7 @@ const Home: React.FC = () => {
   const route = useRoute<HomeRouteProp>();
   const navigation = useNavigation<NavigationProp>();
   const username = route.params?.username || "";
-
+  
   return (
     <View style={styles.container}>
       <NavBar username={username} />
