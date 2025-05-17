@@ -1,0 +1,94 @@
+/* App.css */
+
+body, html, #root {
+  margin: 0;
+  padding: 0;
+  font-family: Arial, sans-serif;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* Header */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #b22222; /* Dark red */
+  color: white;
+  padding: 15px 30px;
+}
+
+.header .left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo {
+  width: 40px;
+  height: 40px;
+}
+
+.right a {
+  margin-right: 20px;
+  color: white;
+  text-decoration: none;
+}
+
+.login-btn {
+  background-color: white;
+  color: #b22222;
+  border: none;
+  padding: 8px 15px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.login-btn1 {
+  background-color: white;
+  color: #b22222;
+  font-weight: bolder;
+  font-style: normal;
+  border: none;
+  padding: 15px 25px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+/* Hero Section */
+.hero {
+  height: 75vh;
+  background-image: url('/src/realqzonbg.jpg'); /* or your actual image */
+  background-size: cover;
+  background-position: center;
+  position: relative;
+}
+
+.overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 71vh;
+  background-color: rgba(0, 0, 0, 0.5); /* darken the image */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  color: white;
+  text-align: center;
+  padding: 20px;
+}
+
+.overlay h2 {
+  font-size: 2rem;
+  margin-bottom: 10px;
+}
+
+.overlay p {
+  font-size: 1.2rem;
+}

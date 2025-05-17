@@ -1,0 +1,80 @@
+.incident-container {
+  background-color: #b3dff2; /* Light blue */
+  padding: 20px;
+  width: 100%;
+  min-height: 100vh;
+  box-sizing: border-box;
+  font-family: sans-serif;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.incident-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 2px solid #811313; /* Dark red */
+  padding-bottom: 10px;
+  margin-bottom: 20px;
+}
+
+.incident-header h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.back-icon {
+  font-size: 18px;
+  cursor: pointer;
+}
+
+.mark-read {
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.incident-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+  max-height: 80vh; /* Keeps it from stretching the page */
+}
+
+.incident-item {
+  background-color: transparent; /* Transparent background */
+  padding: 10px 15px;
+  border-radius: 4px;
+  font-weight: bold;
+  color: #000; /* Ensures text is black */
+  box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.1);
+  border: 1px solid #ddd; /* Light border */
+  margin: 10px 0;
+  text-align: center; /* ✅ Center text */
+}
+
+.incident-footer {
+  margin-top: 20px;
+  text-align: right;
+}
+
+.delete-btn {
+  background-color: #811313;
+  color: white;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.no-data {
+  text-align: center;
+  color: #333;
+  font-style: italic;
+  margin-top: 20px;
+  font-size: 16px; /* Makes it more visible */
+}
