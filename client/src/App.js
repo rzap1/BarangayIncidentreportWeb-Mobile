@@ -3,8 +3,13 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-d
 import Login from './components/Login';
 import About from "./components/About";
 import Home from "./components/Dashboard";
-import IncidentReport from "./components/Incident_Report"; // Add this component
+import IncidentReport from "./components/Incident_Report";
+import ScheduleAssignment from './components/ScheduleAssignment'; // Import your new component
 import "./App.css";
+import PatrolLogs from "./components/Patrollogs";
+import Accounts from "./components/Accounts";
+import GISMapping from "./components/GISmapping";
+
 
 function App() {
   const [showLogin, setShowLogin] = useState(false);
@@ -46,12 +51,8 @@ function App() {
                 </button>
               </>
             )}
-            {isLoggedIn && (
-              <button className="login-btn1" onClick={handleLogout}>
-                Log out
-              </button>
-            )}
-          </div>
+  
+        </div>
         </header>
 
         {/* Show content if not logged in */}
@@ -76,9 +77,12 @@ function App() {
         {/* If logged in, render routes */}
         {isLoggedIn && (
           <Routes>
-            <Route path="/" element={<Home />} />
+            <Route path="/Dashboard" element={<Home />} />
             <Route path="/incident-report" element={<IncidentReport />} />
-            {/* You can add more routes here */}
+            <Route path="/scheduling" element={<ScheduleAssignment />} />
+            <Route path="/patrol-logs" element={<PatrolLogs />} />
+            <Route path="/Accounts" element={<Accounts />} />
+            <Route path="/gis-mapping" element={<GISMapping />} />
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
         )}

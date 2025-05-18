@@ -42,14 +42,14 @@ const About = () => {
         <div className="feature-block">
           <div className="feature-text">
             <h2>Lorem ipsum dolor sit amet consectetur</h2>
-            <p>Lorem ipsum dolor sit, amet consectetur adipisicing elit. Officia obcaecati ex modi perspiciatis? Ad at eveniet debitis</p>
+            <p>At PatrolNet, we believe that safer neighborhoods begin with better communication and smarter patrol strategies. Our system optimizes tanod deployment based on patrol patterns, community input, and live incident data—ensuring that resources are used effectively and response times are minimized. Through a user-friendly interface, residents can report incidents directly, while tanods receive timely updates and guidance to act swiftly and efficiently.</p>
           </div>
           <div className="feature-image">
             <div className="image-container">
               <img src="A1.jpg" alt="AI Detection" />
               <div className="image-overlay">
                 <h3>Innovation</h3>
-                <p>Cutting-edge solutions</p>
+                <p></p>
               </div>
             </div>
           </div>
@@ -58,7 +58,7 @@ const About = () => {
         <div className="feature-block reverse">
           <div className="feature-text">
             <h2>Lorem ipsum dolor sit amet consectetur</h2>
-            <p>Lorem ipsum dolor sit, amet consectetur adipisicing elit. Officia obcaecati ex modi perspiciatis? Ad at eveniet debitis</p>
+            <p>Developed with the unique needs of barangays in mind, PatrolNet bridges the gap between community vigilance and modern technology, fostering a more connected, proactive, and secure environment for all.</p>
           </div>
           <div className="feature-image">
             <div className="image-container">
@@ -74,7 +74,8 @@ const About = () => {
         <div className="feature-block">
           <div className="feature-text">
             <h2>Lorem ipsum dolor sit amet consectetur</h2>
-            <p>Lorem ipsum dolor sit, amet consectetur adipisicing elit. Officia obcaecati ex modi perspiciatis? Ad at eveniet debitis</p>
+            <p>
+Developed with the unique needs of barangays in mind, PatrolNet bridges the gap between community vigilance and modern technology, fostering a more connected, proactive, and secure environment for all.</p>
           </div>
           <div className="feature-image">
             <div className="image-container">

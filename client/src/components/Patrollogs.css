@@ -1,0 +1,109 @@
+.patrol-outer-container {
+  max-width: 1100px;
+  margin: 30px auto;
+  background: #fff;
+  padding: 30px;
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e6e6e6;
+}
+
+.patrol-title {
+  font-size: 1.8rem;
+  font-weight: bold;
+  margin-bottom: 24px;
+  color: #333;
+}
+
+.patrol-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.patrol-table th,
+.patrol-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid #ddd;
+  text-align: left;
+}
+
+.patrol-table th {
+  background-color: #f5f5f5;
+  color: #444;
+}
+
+.status-badge {
+  padding: 6px 12px;
+  border-radius: 12px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  display: inline-block;
+}
+
+.status-badge.completed {
+  background-color: #4caf50;
+  color: #fff;
+}
+
+.status-badge.on-duty {
+  background-color: #ff9800;
+  color: #fff;
+}
+.print-button {
+  padding: 8px 16px;
+  background-color: #2196f3;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+  margin-bottom: 20px;
+}
+
+/* Hide elements when printing */
+@media print {
+  .no-print,
+  .dashboard-header,
+  .print-button {
+    display: none !important;
+  }
+
+  .dashboard-container {
+    margin: 0;
+    padding: 0;
+    box-shadow: none;
+    border: none;
+  }
+
+  .patrol-outer-container {
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    border: none;
+    box-shadow: none;
+  }
+
+  .patrol-title {
+    font-size: 24px;
+    margin-bottom: 10px;
+  }
+
+  .patrol-table {
+    width: 100%;
+    border: 1px solid #000;
+    border-collapse: collapse;
+    font-size: 14px;
+  }
+
+  .patrol-table th,
+  .patrol-table td {
+    border: 1px solid #000;
+    padding: 6px;
+  }
+
+  .status-badge {
+    background: none !important;
+    color: #000 !important;
+    font-weight: normal;
+  }
+}

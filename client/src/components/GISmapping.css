@@ -1,0 +1,88 @@
+/* GISMapping.css */
+
+.dashboard-container {
+  font-family: Arial, sans-serif;
+  min-height: 100vh;
+  background-color: #f4f6f8;
+}
+
+.dashboard-header.professional-navbar {
+  background-color: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 0.75rem 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.navbar-logo {
+  font-size: 1.25rem;
+  font-weight: bold;
+  color: #1f2937;
+}
+
+.navbar-menu {
+  display: flex;
+  gap: 1.5rem;
+}
+
+.navbar-link {
+  color: #4b5563;
+  text-decoration: none;
+  font-weight: 500;
+  padding-bottom: 0.25rem;
+  border-bottom: 2px solid transparent;
+}
+
+.navbar-link:hover,
+.navbar-link.active {
+  color: #1d4ed8;
+  border-color: #1d4ed8;
+}
+
+.gis-wrapper {
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.gis-card {
+  background-color: #ffffff;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  padding: 1.5rem;
+  max-width: 1000px;
+  width: 100%;
+  text-align: center;
+}
+
+.gis-header {
+  margin-bottom: 1rem;
+}
+
+.gis-header h2 {
+  font-size: 1.5rem;
+  margin: 0;
+}
+
+.gis-map-container {
+  border: 3px solid #1d4ed8;
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.gis-map-image {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+.gis-map-title {
+  background-color: #d1d5db;
+  padding: 0.75rem;
+  font-weight: bold;
+  text-align: center;
+  font-size: 1.125rem;
+  color: #111827;
+}

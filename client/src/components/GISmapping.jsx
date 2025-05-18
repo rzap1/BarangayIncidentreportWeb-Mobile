@@ -1,8 +1,8 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import './Dashboard.css';
+import './GISmapping.css';
 
-function Dashboard() {
+function GISMapping() {
   return (
     <div className="dashboard-container">
       <header className="bg-white shadow-sm">
@@ -13,8 +13,8 @@ function Dashboard() {
                      <h1 className="text-xl font-bold text-gray-900">Admin Dashboard</h1>
                    </div>
                    <nav className="ml-6 flex space-x-8">
-                     <Link to="/Dashboard" className="border-indigo-500 text-indigo-600 hover:text-indigo-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
-                       Dashboard
+                     <Link to="/Dashboard" className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                       Home
                      </Link>
                      <Link to="/incident-report" className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
                        Incident Report
@@ -22,7 +22,7 @@ function Dashboard() {
                      <Link to="/scheduling" className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
                        Scheduling & Assessment
                      </Link>
-                     <Link to="/gis-mapping" className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                     <Link to="/gis-mapping" className="border-indigo-500 text-indigo-600 hover:text-indigo-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
                        GIS Mapping
                      </Link>
                      <Link to="/patrol-logs" className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
@@ -48,41 +48,22 @@ function Dashboard() {
                </div>
              </div>
            </header>
-      <div className="homepage-wrapper">
-        <div className="homepage-welcome">
-          <h1>Welcome to BarangayWatch Admin Panel 🧑‍💼</h1>
-          <p className="homepage-tagline">Manage user roles, accounts, and barangay access</p>
+
+      <div className="gis-mapping-wrapper">
+        <div className="gis-header">
+          <h2>📍 Incident Prone Area</h2>
+          <p>View areas frequently affected by incidents</p>
         </div>
-
-        <div className="homepage-grid">
-          <Link to="/accounts/residents" className="homepage-card">
-            <h3>🏠 Resident Accounts</h3>
-            <p>View and manage registered residents</p>
-          </Link>
-
-          <Link to="/accounts/barangay-officers" className="homepage-card">
-            <h3>🧑 Barangay Officers</h3>
-            <p>Manage officer accounts and privileges</p>
-          </Link>
-
-          <Link to="/accounts/admins" className="homepage-card">
-            <h3>👮 Admin Accounts</h3>
-            <p>Control admin-level users and access</p>
-          </Link>
-
-          <Link to="/accounts/create" className="homepage-card">
-            <h3>➕ Create Account</h3>
-            <p>Add new residents or officers to the system</p>
-          </Link>
-
-          <Link to="/accounts/logs" className="homepage-card">
-            <h3>📜 Account Logs</h3>
-            <p>View account activity and login logs</p>
-          </Link>
+        <div className="map-container">
+          <img
+            src="/images/incident-prone-map.png"
+            alt="Incident Prone Area Map"
+            className="gis-map"
+          />
         </div>
       </div>
     </div>
   );
 }
 
-export default Dashboard;
+export default GISMapping;
