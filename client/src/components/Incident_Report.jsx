@@ -1,18 +1,46 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import './IncidentReport.css';
 
-const incidents = [
-  { id: 1, incident: 'Reported Sunog', username: 'maria123', email: 'maria@example.com', status: 'Under Review', action: 'VIEW' },
-  { id: 2, incident: 'Reported Suntukan sa highway', username: 'juandelacruz', email: 'juan@example.com', status: 'Resolved', action: 'RESOLVED' },
-  { id: 3, incident: 'Reported Banggaan ng Sasakyan', username: 'anareyes', email: 'ana@example.com', status: 'In Progress', action: 'Tanod is On the way!' },
-];
-
 function IncidentReport() {
+  const [incidents, setIncidents] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [selectedIncident, setSelectedIncident] = useState(null);
   const [modalType, setModalType] = useState('');
+  const getStatusColor = (status) => {
+  switch (status) {
+    case 'Under Review':
+      return 'status-yellow';
+    case 'In Progress':
+      return 'status-blue';
+    case 'Resolved':
+      return 'status-green';
+    default:
+      return '';
+  }
+};
+
+  useEffect(() => {
+      const fetchData = () => {
+      fetch("http://192.168.107.28:3001/api/incidents")
+      .then(res => res.json())
+      .then(data => setIncidents(data))
+      .catch(err => {
+      console.error("Failed to fetch incidents:", err);
+      setIncidents([]);
+      });
+      };
+
+      // Initial fetch
+      fetchData();
+
+      // Set interval for auto-refresh (e.g. every 30 seconds)
+      const intervalId = setInterval(fetchData, 3000);
+
+      // Clear interval on component unmount
+      return () => clearInterval(intervalId);
+      }, []);
 
   const handleActionClick = (incident, type) => {
     setSelectedIncident(incident);
@@ -29,50 +57,49 @@ function IncidentReport() {
   return (
     <div className="dashboard-container">
       <header className="bg-white shadow-sm">
-             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-               <div className="flex justify-between h-16">
-                 <div className="flex">
-                   <div className="flex-shrink-0 flex items-center">
-                     <h1 className="text-xl font-bold text-gray-900">Admin Dashboard</h1>
-                   </div>
-                   <nav className="ml-6 flex space-x-8">
-                     <Link to="/Dashboard" className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
-                       Dashboard
-                     </Link>
-                     <Link to="/incident-report" className="border-indigo-500 text-indigo-600 hover:text-indigo-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
-                       Incident Report
-                     </Link>
-                     <Link to="/scheduling" className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
-                       Scheduling & Assessment
-                     </Link>
-                     <Link to="/gis-mapping" className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
-                       GIS Mapping
-                     </Link>
-                     <Link to="/patrol-logs" className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
-                       Patrol Logs
-                     </Link>
-                     <Link to="/accounts" className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
-                       Accounts
-                     </Link>
-                   </nav>
-                 </div>
-                 <div className="flex items-center">
-                   <div className="flex-shrink-0">
-                     <span className="relative inline-block">
-                       <img
-                         className="h-8 w-8 rounded-full"
-                         src="/api/placeholder/150/150"
-                         alt="User avatar"
-                       />
-                       <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-green-400 ring-2 ring-white"></span>
-                     </span>
-                   </div>
-                 </div>
-               </div>
-             </div>
-           </header>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between h-16">
+            <div className="flex">
+              <div className="flex-shrink-0 flex items-center">
+                <h1 className="text-xl font-bold text-gray-900">Admin Dashboard</h1>
+              </div>
+              <nav className="ml-6 flex space-x-8">
+                <Link to="/Dashboard" className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                  Dashboard
+                </Link>
+                <Link to="/incident-report" className="border-indigo-500 text-indigo-600 hover:text-indigo-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                  Incident Report
+                </Link>
+                <Link to="/scheduling" className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                  Scheduling & Assessment
+                </Link>
+                <Link to="/gis-mapping" className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                  GIS Mapping
+                </Link>
+                <Link to="/patrol-logs" className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                  Patrol Logs
+                </Link>
+                <Link to="/accounts" className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                  Accounts
+                </Link>
+              </nav>
+            </div>
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <span className="relative inline-block">
+                  <img
+                    className="h-8 w-8 rounded-full"
+                    src="/api/placeholder/150/150"
+                    alt="User avatar"
+                  />
+                  <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-green-400 ring-2 ring-white"></span>
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </header>
 
-      {/* Main Content */}
       <div className="account-management-container">
         <div className="account-header">
           <div className="account-title">
@@ -107,44 +134,50 @@ function IncidentReport() {
               </tr>
             </thead>
             <tbody>
-              {incidents.map((item) => (
-                <tr key={item.id}>
-                  <td>#{item.id}</td>
-                  <td className="incident-cell">
-                    <div className="incident-icon">
-                      <img src="/user-icon.png" alt="Profile" className="small-avatar" />
-                    </div>
-                    <div className="incident-text" title={item.incident}>{item.incident}</div>
-                  </td>
-                  <td>
-                    <span className={`type-badge ${getIncidentType(item.incident)}`}>
-                      {getIncidentType(item.incident)}
-                    </span>
-                  </td>
-                  <td>{item.username}</td>
-                  <td>{getIncidentLocation(item.action)}</td>
-                  <td>
-                    <span className={`status-badge ${getStatusClass(item.status)}`}>
-                      {item.status}
-                    </span>
-                  </td>
-                  <td className="actions-cell">
-                    <button 
-                      className="edit-button"
-                      onClick={() => handleActionClick(item, item.action)}
-                    >
-                      Edit
-                    </button>
-                    <button className="delete-button">Delete</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
+  {incidents.length === 0 ? (
+    <tr>
+      <td colSpan="7" style={{textAlign: 'center'}}>No incidents found.</td>
+    </tr>
+  ) : (
+    incidents.map((item) => (
+      <tr key={item.id}>
+        <td>#{item.id}</td>
+        <td className="incident-cell">
+          <div className="incident-icon">
+            <img
+              src={`http://192.168.107.28:3001/uploads/${item.image}`}
+              alt="Incident"
+              className="small-avatar"
+            />
+
+          </div>
+        </td>
+        <td>
+          <span className="type-badge">{item.incident_type || "N/A"}</span>
+        </td>
+        <td>{item.reported_by || "Unknown"}</td>
+        <td>{item.location || "Not specified"}</td>
+        <td>
+          <span className={`status-badge ${getStatusColor(item.status)}`}>{item.status}</span>
+        </td>
+        <td className="actions-cell">
+          <button 
+            className="edit-button"
+            onClick={() => handleActionClick(item, 'VIEW')}
+          >
+            View
+          </button>
+          <button className="delete-button">Delete</button>
+        </td>
+      </tr>
+    ))
+  )}
+</tbody>
+
           </table>
         </div>
       </div>
 
-      {/* Modal Portal */}
       {showModal && selectedIncident && 
         createPortal(
           <div className="modal-overlay" onClick={closeModal}>
@@ -156,37 +189,38 @@ function IncidentReport() {
               <div className="modal-body">
                 <div className="modal-field">
                   <label>ID</label>
-                  <div className="modal-value">{selectedIncident.id}</div>
+                  <div className="modal-value">#{selectedIncident.id}</div>
                 </div>
                 <div className="modal-field">
                   <label>Incident</label>
-                  <div className="modal-value">{selectedIncident.incident}</div>
+                  <div className="modal-value">{selectedIncident.incident_type}</div>
                 </div>
                 <div className="modal-field">
                   <label>Incident Photo</label>
                   <div className="modal-image-container">
-                    <img src="/user-icon.png" alt="Incident" className="modal-image" />
+                    <img 
+                      src={`http://192.168.107.28:3001/uploads/${selectedIncident.image}`} 
+                      alt="Incident" 
+                      className="modal-image" 
+                    />
+
                   </div>
                 </div>
                 <div className="modal-field">
                   <label>Status</label>
-                  <div className="modal-value">
-                    {selectedIncident.status}
-                  </div>
+                  <div className="modal-value">{selectedIncident.status}</div>
                 </div>
                 <div className="modal-field">
                   <label>Location</label>
-                  <div className="modal-value">
-                    {getIncidentLocation(selectedIncident.action)}
-                  </div>
+                  <div className="modal-value">{selectedIncident.location || "Not specified"}</div>
                 </div>
                 <div className="modal-field">
                   <label>Reported By</label>
-                  <div className="modal-value">{selectedIncident.username}</div>
+                  <div className="modal-value">{selectedIncident.reported_by || "Unknown"}</div>
                 </div>
                 <div className="modal-field">
                   <label>Reported Time</label>
-                  <div className="modal-value">{new Date().toLocaleString()}</div>
+                  <div className="modal-value">{new Date(selectedIncident.datetime).toLocaleString()}</div>
                 </div>
               </div>
 
@@ -206,31 +240,6 @@ function IncidentReport() {
       }
     </div>
   );
-}
-
-function getIncidentType(incident) {
-  if (incident.toLowerCase().includes('sunog')) return 'Fire';
-  if (incident.toLowerCase().includes('suntukan')) return 'Violence';
-  if (incident.toLowerCase().includes('banggaan')) return 'Accident';
-  return 'Other';
-}
-
-function getIncidentLocation(action) {
-  switch(action) {
-    case 'RESOLVED': return 'Highway Km 18';
-    case 'Tanod is On the way!': return 'Corner Rizal and Bonifacio St.';
-    case 'VIEW': return 'Not specified';
-    default: return 'Unknown';
-  }
-}
-
-function getStatusClass(status) {
-  switch(status) {
-    case 'Resolved': return 'resolved';
-    case 'In Progress': return 'in-progress';
-    case 'Under Review': return 'under-review';
-    default: return '';
-  }
 }
 
 export default IncidentReport;

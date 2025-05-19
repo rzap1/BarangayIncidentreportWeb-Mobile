@@ -1,17 +1,42 @@
 const express = require("express");
 const mysql = require("mysql2");
 const cors = require("cors");
+const multer = require("multer");
+const path = require("path");
+const fs = require("fs");
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Serve uploaded images statically
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
+// Create uploads folder if it doesn't exist
+const uploadDir = path.join(__dirname, "uploads");
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir);
+}
+
+// Multer config for file upload
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, "uploads/");
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname);
+    const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
+    cb(null, uniqueName);
+  },
+});
+const upload = multer({ storage });
+
 // MySQL connection
 const db = mysql.createConnection({
   host: "localhost",
-  user: "root",        // replace with your MySQL user
-  password: "",        // replace with your MySQL password
-  database: "db"       // replace with your database name
+  user: "root",
+  password: "",
+  database: "db",
 });
 
 db.connect((err) => {
@@ -38,29 +63,28 @@ app.post("/login", (req, res) => {
     }
 
     if (results.length === 0) {
-      // No matching user
       return res.status(401).json({ error: "Invalid username or password" });
     }
 
     const user = results[0];
 
     if (user.STATUS === "Verified") {
-      // User verified, login allowed
       return res.json({ success: true, message: "Login successful" });
     } else if (user.STATUS === "Pending") {
-      // User not verified yet, reject login
       return res.status(403).json({ error: "Account status is Pending. Please verify your account." });
     } else {
-      // Any other status - optional handling
       return res.status(403).json({ error: `Account status "${user.STATUS}" does not allow login.` });
     }
   });
 });
 
-
-// Fetch incidents route
+// Fetch incidents
 app.get("/api/incidents", (req, res) => {
-  const sql = "SELECT * FROM incident_report";
+  const sql = `
+    SELECT id, incident_type, location, status, datetime, image, reported_by
+    FROM incident_report
+    ORDER BY datetime DESC
+  `;
   db.query(sql, (err, results) => {
     if (err) {
       console.error("❌ SQL error:", err);
@@ -70,30 +94,41 @@ app.get("/api/incidents", (req, res) => {
   });
 });
 
-// ** ADD POST route for incident insertion **
-app.post("/api/incidents", (req, res) => {
-  const { incidentType, pinLocation, datetime, image } = req.body;
+// Insert incident with image file upload
+app.post("/api/incidents", upload.single("image"), (req, res) => {
+  const { incidentType, latitude, longitude, datetime, address, reported_by } = req.body;
+  const image = req.file ? req.file.filename : null;
 
-  // Basic validation
-  if (!incidentType || !pinLocation || !datetime) {
+  if (!incidentType || !latitude || !longitude || !datetime || !address || !reported_by) {
     return res.status(400).json({ error: "Missing required fields" });
   }
 
-  // Example insert query - adjust column names and table name as needed
+  const latNum = parseFloat(latitude);
+  const lonNum = parseFloat(longitude);
+  if (isNaN(latNum) || isNaN(lonNum)) {
+    return res.status(400).json({ error: "Invalid coordinates" });
+  }
+
+  const status = "Under Review";
+
+  console.log("Received incident report:", {
+    incidentType,
+    latitude: latNum,
+    longitude: lonNum,
+    datetime,
+    address,
+    reported_by,
+    image,
+  });
+
   const sql = `
-    INSERT INTO incident_report (incident_type, latitude, longitude, datetime, image)
-    VALUES (?, ?, ?, ?, ?)
+    INSERT INTO incident_report (incident_type, latitude, longitude, datetime, image, location, status, reported_by)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `;
 
   db.query(
     sql,
-    [
-      incidentType,
-      pinLocation.latitude,
-      pinLocation.longitude,
-      datetime,
-      image || null, // allow null if no image
-    ],
+    [incidentType, latNum, lonNum, datetime, image, address, status, reported_by],
     (err, result) => {
       if (err) {
         console.error("❌ SQL insert error:", err);
@@ -105,15 +140,16 @@ app.post("/api/incidents", (req, res) => {
   );
 });
 
+
+
 // Register route
 app.post("/register", (req, res) => {
   const { username, password, role } = req.body;
-  const status = "Pending"; // Default status
+  const status = "Pending";
+
   if (!username || !password || !role) {
     return res.status(400).json({ success: false, message: "Missing required fields" });
   }
-
-  
 
   const sql = "INSERT INTO users (USER, PASSWORD, ROLE, STATUS) VALUES (?, ?, ?, ?)";
   db.query(sql, [username, password, role, status], (err, result) => {
@@ -128,8 +164,6 @@ app.post("/register", (req, res) => {
     res.json({ success: true, message: "User registered successfully" });
   });
 });
-
-
 
 // Start server
 app.listen(3001, () => {

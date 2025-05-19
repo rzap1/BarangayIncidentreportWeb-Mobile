@@ -13,7 +13,7 @@ import {
 import MapView, { Marker, PROVIDER_GOOGLE, Region } from "react-native-maps";
 import * as Location from "expo-location";
 import * as ImagePicker from "expo-image-picker";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "./app";
 import { Ionicons, Feather } from "@expo/vector-icons";
@@ -24,6 +24,9 @@ type NavigationProp = NativeStackNavigationProp<
   "IncidentReport"
 >;
 
+// New: Route prop type for IncidentReport to get params
+type IncidentReportRouteProp = RouteProp<RootStackParamList, "IncidentReport">;
+
 const DEFAULT_COORDS = {
   latitude: 14.56535797150489,
   longitude: 121.61706714218529,
@@ -31,6 +34,11 @@ const DEFAULT_COORDS = {
 
 const IncidentReport: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
+  const route = useRoute<IncidentReportRouteProp>();
+
+  // New: get username from route params, default to "unknown" if not provided
+  const username = route.params?.username ?? "unknown";
+
   const [incidentType, setIncidentType] = useState("");
   const [locationLoaded, setLocationLoaded] = useState(false);
   const [mapRegion, setMapRegion] = useState<Region>({
@@ -44,9 +52,9 @@ const IncidentReport: React.FC = () => {
   const [longInput, setLongInput] = useState(DEFAULT_COORDS.longitude.toString());
   const [image, setImage] = useState<string | null>(null);
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
+  const [address, setAddress] = useState<string>("");
 
   useEffect(() => {
-    // Always set default location on mount
     setMapRegion({
       latitude: DEFAULT_COORDS.latitude,
       longitude: DEFAULT_COORDS.longitude,
@@ -66,19 +74,34 @@ const IncidentReport: React.FC = () => {
     return () => clearInterval(timer);
   }, []);
 
-  const formatDateTime12Hour = (date: Date) => {
-    return date.toLocaleString("en-US", {
-      hour12: true,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    });
+  useEffect(() => {
+    const fetchAddress = async () => {
+      try {
+        const results = await Location.reverseGeocodeAsync(pinLocation);
+        if (results.length > 0) {
+          const addr = results[0];
+          const formatted = `${addr.name || ""} ${addr.street || ""}, ${addr.city || addr.subregion || ""}, ${addr.region || ""}, ${addr.postalCode || ""}`;
+          setAddress(formatted.trim());
+        } else {
+          setAddress("Address not found");
+        }
+      } catch (err) {
+        setAddress("Failed to get address");
+      }
+    };
+
+    fetchAddress();
+  }, [pinLocation]);
+
+  const formatDateTimeForMySQL = (date: Date) => {
+    const pad = (n: number) => n.toString().padStart(2, "0");
+    return (
+      `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ` +
+      `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
+    );
   };
 
-  const formattedDateTime = formatDateTime12Hour(currentDateTime);
+  const formattedDateTime = formatDateTimeForMySQL(currentDateTime);
 
   const handleUseCurrentLocation = async () => {
     try {
@@ -144,42 +167,54 @@ const IncidentReport: React.FC = () => {
     setImage(null);
   };
 
+  // Modified handleSubmit to add reported_by (username)
   const handleSubmit = async () => {
-  try {
-    const response = await fetch("http://192.168.138.28:3001/api/incidents", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ incidentType, pinLocation, datetime: formattedDateTime, image }),
-    });
-
-    const text = await response.text(); // get raw response text
-    console.log("Response text:", text);
-
-    // Now parse json safely:
-    let data;
     try {
-      data = JSON.parse(text);
-    } catch (e) {
-      throw new Error("Response is not valid JSON");
-    }
+      const formData = new FormData();
 
-    if (response.ok) {
-      Alert.alert("Success", "Incident reported successfully", [
-        { text: "OK", onPress: () => navigation.goBack() },
-      ]);
-    } else {
-      Alert.alert("Error", data.error || "Failed to report incident");
-    }
-  } catch (error) {
-    let errorMessage = "Network error";
-    if (error instanceof Error) {
-      errorMessage += ": " + error.message;
-    }
-    Alert.alert("Error", errorMessage);
-  }
-};
+      formData.append("incidentType", incidentType);
+      formData.append("latitude", pinLocation.latitude.toString());
+      formData.append("longitude", pinLocation.longitude.toString());
+      formData.append("datetime", formattedDateTime);
+      formData.append("address", address);
+      formData.append("reported_by", username);
 
 
+      if (image) {
+        const filename = image.split("/").pop()!;
+        const match = /\.(\w+)$/.exec(filename);
+        const ext = match ? match[1] : "jpg";
+        formData.append("image", {
+          uri: image,
+          name: filename,
+          type: `image/${ext}`,
+        } as any);
+      }
+
+      const response = await fetch("http://192.168.107.28:3001/api/incidents", {
+        method: "POST",
+        body: formData,
+      });
+
+      const text = await response.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        throw new Error("Response is not valid JSON");
+      }
+
+      if (response.ok) {
+        Alert.alert("Success", "Incident reported successfully", [
+          { text: "OK", onPress: () => navigation.goBack() },
+        ]);
+      } else {
+        Alert.alert("Error", data.error || "Failed to report incident");
+      }
+    } catch (error) {
+      Alert.alert("Error", error instanceof Error ? error.message : "Unknown error");
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -187,8 +222,8 @@ const IncidentReport: React.FC = () => {
       <ScrollView contentContainerStyle={styles.body}>
         <Text style={styles.reportTitle}>OH NO!</Text>
         <Text style={styles.reportTitle}>HURRY UP AND REPORT THE INCIDENT</Text>
-        <Text style={styles.sadEmoji}>&#x1F61E;</Text>
 
+        <Text style={styles.label}>{username}</Text>
         <Text style={styles.label}>Type of incident:</Text>
         <TextInput
           style={styles.input}
@@ -201,6 +236,13 @@ const IncidentReport: React.FC = () => {
         <TextInput
           style={[styles.input, { backgroundColor: "#e0e0e0" }]}
           value={formattedDateTime}
+          editable={false}
+        />
+
+        <Text style={styles.label}>Location Address:</Text>
+        <TextInput
+          style={[styles.input, { backgroundColor: "#e0e0e0" }]}
+          value={address}
           editable={false}
         />
 
@@ -243,7 +285,10 @@ const IncidentReport: React.FC = () => {
           />
           <Text style={styles.attachPhotoButtonText}>ATTACH PHOTO</Text>
         </TouchableOpacity>
-          <View style={[styles.inputGroup, { display: "none" }]}>
+          <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
+          <Text style={styles.submitButtonText}>SUBMIT</Text>
+        </TouchableOpacity>
+        <View style={[styles.inputGroup, { display: "none" }]}>
           <Text style={styles.inputLabel}>Latitude</Text>
           <TextInput style={styles.input} value={latInput} editable={false} />
         </View>
@@ -252,6 +297,7 @@ const IncidentReport: React.FC = () => {
           <Text style={styles.inputLabel}>Longitude</Text>
           <TextInput style={styles.input} value={longInput} editable={false} />
         </View>
+
         {image && (
           <View style={styles.imageSection}>
             <View style={styles.imageLabelRow}>
@@ -265,38 +311,17 @@ const IncidentReport: React.FC = () => {
         )}
 
         
-
-        <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
-          <Text style={styles.submitButtonText}>SUBMIT</Text>
-        </TouchableOpacity>
       </ScrollView>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#f0f0f0",
-  },
-  body: {
-    padding: 20,
-    alignItems: "center",
-  },
-  reportTitle: {
-    fontSize: 16,
-    fontWeight: "bold",
-    marginBottom: 5,
-  },
-  sadEmoji: {
-    fontSize: 24,
-    marginBottom: 15,
-  },
-  label: {
-    fontSize: 14,
-    marginBottom: 5,
-    alignSelf: "flex-start",
-  },
+  container: { flex: 1, backgroundColor: "#f0f0f0" },
+  body: { padding: 20, alignItems: "center" },
+  reportTitle: { fontSize: 16, fontWeight: "bold", marginBottom: 5 },
+  sadEmoji: { fontSize: 24, marginBottom: 15 },
+  label: { fontSize: 14, marginBottom: 5, alignSelf: "flex-start" },
   input: {
     width: "100%",
     backgroundColor: "#fff",
@@ -315,9 +340,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  map: {
-    ...StyleSheet.absoluteFillObject,
-  },
+  map: { ...StyleSheet.absoluteFillObject },
   currentLocationButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -327,10 +350,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     marginBottom: 15,
   },
-  currentLocationText: {
-    fontSize: 14,
-    marginRight: 10,
-  },
+  currentLocationText: { fontSize: 14, marginRight: 10 },
   attachPhotoButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -340,33 +360,20 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     marginBottom: 15,
   },
-  attachPhotoButtonText: {
-    fontSize: 14,
-    fontWeight: "bold",
-  },
-  imageSection: {
-    width: "100%",
-    marginBottom: 20,
-  },
+  attachPhotoButtonText: { fontSize: 14, fontWeight: "bold" },
+  imageSection: { width: "100%", marginBottom: 20 },
   imageLabelRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     marginBottom: 5,
   },
-  imageLabel: {
-    fontSize: 14,
-    fontWeight: "bold",
-  },
+  imageLabel: { fontSize: 14, fontWeight: "bold" },
   removePhotoText: {
     color: "red",
     textDecorationLine: "underline",
     fontSize: 13,
   },
-  imagePreview: {
-    width: "100%",
-    height: 200,
-    borderRadius: 10,
-  },
+  imagePreview: { width: "100%", height: 200, borderRadius: 10 },
   submitButton: {
     backgroundColor: "#a9a9a9",
     paddingVertical: 12,
@@ -374,15 +381,8 @@ const styles = StyleSheet.create({
     borderRadius: 25,
     marginBottom: 30,
   },
-  submitButtonText: {
-    color: "#fff",
-    fontWeight: "bold",
-    fontSize: 16,
-  },
-  inputGroup: {
-    width: "100%",
-    marginBottom: 15,
-  },
+  submitButtonText: { color: "#fff", fontWeight: "bold", fontSize: 16 },
+  inputGroup: { width: "100%", marginBottom: 15 },
   inputLabel: {
     fontSize: 12,
     fontWeight: "bold",

@@ -27,11 +27,12 @@ const Home: React.FC = () => {
         <Text style={styles.subText}>ABOUT SA APP</Text>
         
         <TouchableOpacity
-          style={styles.reportButton}
-          onPress={() => navigation.navigate("IncidentReport")} // ✅ this now works
-        >
-          <Text style={styles.reportButtonText}>REPORT INCIDENT</Text>
-        </TouchableOpacity>
+            style={styles.reportButton}
+            onPress={() => navigation.navigate("IncidentReport", { username })}
+          >
+            <Text style={styles.reportButtonText}>REPORT INCIDENT</Text>
+          </TouchableOpacity>
+
       </View>
     </View>
   );

@@ -395,8 +395,12 @@
 }
 
 .incident-icon {
-  margin-right: 12px;
-  flex-shrink: 0;
+     display: inline-block;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 500;
+    flex-shrink: 0;
 }
 
 .incident-text {
@@ -413,12 +417,29 @@
 
 /* Status badges */
 .status-badge {
-  display: inline-block;
-  padding: 4px 10px;
-  border-radius: 20px;
-  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.875rem;
   font-weight: 500;
+  display: inline-block;
+  text-align: center;
 }
+
+.status-yellow {
+  background-color: #fff3cd;
+  color: #856404;
+}
+
+.status-blue {
+  background-color: #d1ecf1;
+  color: #0c5460;
+}
+
+.status-green {
+  background-color: #d4edda;
+  color: #155724;
+}
+
 
 .resolved {
   background-color: #d1fae5;

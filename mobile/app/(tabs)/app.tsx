@@ -12,7 +12,7 @@ export type RootStackParamList = {
   Login: undefined;
   Register: undefined;
   Home: { username: string };
-  IncidentReport: undefined;
+  IncidentReport: { username: string };
 };
 
 

@@ -11,6 +11,7 @@ import {
 import axios from "axios";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type RootStackParamList = {
   Login: undefined;
@@ -23,8 +24,8 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 const Login: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
 
-  const [username, setUsername] = useState("admin");
-  const [password, setPassword] = useState("admin");  
+  const [username, setUsername] = useState("user");
+  const [password, setPassword] = useState("user");  
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
@@ -35,7 +36,7 @@ const Login: React.FC = () => {
 
     setLoading(true);
     try {
-        const response = await axios.post("http://192.168.138.28:3001/login", {
+        const response = await axios.post("http://192.168.107.28:3001/login", {
           username,
           password,
         });

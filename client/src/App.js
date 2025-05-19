@@ -83,7 +83,8 @@ function App() {
             <Route path="/patrol-logs" element={<PatrolLogs />} />
             <Route path="/Accounts" element={<Accounts />} />
             <Route path="/gis-mapping" element={<GISMapping />} />
-            <Route path="*" element={<Navigate to="/" />} />
+            <Route path="*" element={<Navigate to="/Dashboard" />} />
+
           </Routes>
         )}
       </div>
