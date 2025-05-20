@@ -1,48 +1,213 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import './Accounts.css';
 
 function Accounts() {
-  const [accounts, setAccounts] = useState([
-    { id: 1, type: 'Resident', name: 'Maria Santos', username: 'maria123', email: 'maria@example.com', status: 'Active' },
-    { id: 2, type: 'Tanod', name: 'Juan Dela Cruz', username: 'juandelacruz', email: 'juan@example.com', status: 'Active' },
-    { id: 3, type: 'Resident', name: 'Ana Reyes', username: 'anareyes', email: 'ana@example.com', status: 'Inactive' },
-  ]);
-
-  const [newAccount, setNewAccount] = useState({ 
-    type: 'Resident', 
-    name: '', 
-    username: '', 
+  const [accounts, setAccounts] = useState([]);
+  const [newAccount, setNewAccount] = useState({
+    type: 'Resident',
+    name: '',
+    username: '',
     email: '',
-    status: 'Active' 
+    password: '',
+    address: '',
+    status: 'Pending'
   });
-  
+
+  const [editAccount, setEditAccount] = useState({
+    id: null,
+    type: '',
+    name: '',
+    username: '',
+    email: '',
+    address: '',
+    status: ''
+  });
+
   const [showForm, setShowForm] = useState(false);
+  const [showEditForm, setShowEditForm] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filter, setFilter] = useState('All');
+
+  // Fetch users data from database
+  useEffect(() => {
+  // Initial fetch
+  fetchUsers();
+  
+  // Set up interval for automatic refresh every 3 seconds
+  const interval = setInterval(() => {
+    fetchUsers();
+  }, 3000);
+  
+  // Cleanup interval on component unmount
+  return () => clearInterval(interval);
+}, []);
+
+  const fetchUsers = async () => {
+    try {
+      const response = await fetch('http://192.168.180.28:3001/api/users');
+      const data = await response.json();
+      setAccounts(data);
+    } catch (error) {
+      console.error("Failed to fetch users:", error);
+    }
+  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setNewAccount((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleAddAccount = (e) => {
-    e.preventDefault();
-    if (!newAccount.name || !newAccount.username) return;
-    const newId = accounts.length + 1;
-    setAccounts([...accounts, { id: newId, ...newAccount }]);
-    setNewAccount({ type: 'Resident', name: '', username: '', email: '', status: 'Active' });
-    setShowForm(false);
+  const handleEditInputChange = (e) => {
+    const { name, value } = e.target;
+    setEditAccount((prev) => ({ ...prev, [name]: value }));
   };
 
-  const filteredAccounts = accounts.filter(account => {
-    const matchesSearch = 
-      account.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      account.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      account.email.toLowerCase().includes(searchQuery.toLowerCase());
+  const handleAddAccount = async (e) => {
+    e.preventDefault();
+    if (!newAccount.name || !newAccount.username || !newAccount.password) return;
     
+    try {
+      const response = await fetch('http://192.168.180.28:3001/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          username: newAccount.username,
+          password: newAccount.password,
+          role: newAccount.type,
+          name: newAccount.name,
+          email: newAccount.email,
+          address: newAccount.address,
+        }),
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        alert('Account created successfully!');
+        // Refresh the user list
+        fetchUsers();
+        // Reset form
+        setNewAccount({
+          type: 'Resident',
+          name: '',
+          username: '',
+          email: '',
+          password: '',
+          status: 'Pending'
+        });
+        setShowForm(false);
+      } else {
+        alert(data.message || 'Failed to create account');
+      }
+    } catch (error) {
+      console.error("Failed to create account:", error);
+      alert('Failed to create account. Please try again.');
+    }
+  };
+
+  // Improved handleEditAccount function for the frontend
+
+const handleEditAccount = async (e) => {
+  e.preventDefault();
+  if (!editAccount.name || !editAccount.username) return;
+  
+  try {
+    const response = await fetch(`http://192.168.180.28:3001/api/users/${editAccount.id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        username: editAccount.username,
+        role: editAccount.type,
+        name: editAccount.name,
+        email: editAccount.email || '',
+        address: editAccount.address || '',
+        status: editAccount.status
+      }),
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      // Show success message
+      alert('Account updated successfully!');
+      
+      // Refresh the user list
+      fetchUsers();
+      
+      // Reset form and close
+      setEditAccount({
+        id: null,
+        type: '',
+        name: '',
+        username: '',
+        email: '',
+        status: ''
+      });
+      setShowEditForm(false);
+    } else {
+      alert(data.message || 'Failed to update account');
+    }
+  } catch (error) {
+    console.error("Failed to update account:", error);
+    alert('Failed to update account. Please try again.');
+  }
+}
+
+  const handleEditClick = (account) => {
+    setEditAccount({
+      id: account.ID,
+      type: account.ROLE,
+      name: account.NAME || '',
+      username: account.USER,
+      email: account.EMAIL || '',
+      address: account.ADDRESS || '',
+      status: account.STATUS
+    });
+    setShowEditForm(true);
+  };
+
+  const handleDeleteAccount = async (accountId) => {
+  if (!window.confirm('Are you sure you want to delete this account?')) {
+    return;
+  }
+  
+  try {
+    const response = await fetch(`http://192.168.180.28:3001/api/users/${accountId}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      // Show success message
+      alert('Account deleted successfully!');
+      
+      // Refresh the user list
+      fetchUsers();
+    } else {
+      alert(data.message || 'Failed to delete account');
+    }
+  } catch (error) {
+    console.error("Failed to delete account:", error);
+    alert('Failed to delete account. Please try again.');
+  }
+};
+
+  const filteredAccounts = accounts.filter(account => {
+    const matchesSearch =
+      account.USER?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      account.EMAIL?.toLowerCase().includes(searchQuery.toLowerCase());
+
     if (filter === 'All') return matchesSearch;
-    return matchesSearch && account.type === filter;
+    return matchesSearch && account.ROLE === filter;
   });
 
   return (
@@ -97,7 +262,7 @@ function Accounts() {
             <div className="px-4 py-5 sm:p-6">
               <div className="sm:flex sm:items-center sm:justify-between">
                 <div>
-                                      <h2 className="text-lg leading-6 font-medium text-gray-900 flex items-center">
+                  <h2 className="text-lg leading-6 font-medium text-gray-900 flex items-center">
                     <svg className="mr-2 h-5 w-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
                     </svg>
@@ -109,7 +274,10 @@ function Accounts() {
                 </div>
                 <div className="mt-4 sm:mt-0">
                   <button
-                    onClick={() => setShowForm(!showForm)}
+                    onClick={() => {
+                      setShowForm(!showForm);
+                      setShowEditForm(false);
+                    }}
                     className={`inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white ${
                       showForm ? 'bg-red-600 hover:bg-red-700' : 'bg-indigo-600 hover:bg-indigo-700'
                     } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500`}
@@ -138,6 +306,21 @@ function Accounts() {
                   <h3 className="text-md font-medium text-gray-900 mb-4">Create New Account</h3>
                   <form className="space-y-4" onSubmit={handleAddAccount}>
                     <div className="grid grid-cols-1 gap-y-4 gap-x-4 sm:grid-cols-6">
+                     
+                      <div className="sm:col-span-3">
+                        <label htmlFor="name" className="block text-sm font-medium text-gray-700">
+                          Full Name
+                        </label>
+                        <input
+                          type="text"
+                          name="name"
+                          id="name"
+                          value={newAccount.name}
+                          onChange={handleInputChange}
+                          required
+                          className="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+                        />
+                      </div>
                       <div className="sm:col-span-2">
                         <label htmlFor="type" className="block text-sm font-medium text-gray-700">
                           Account Type
@@ -155,20 +338,7 @@ function Accounts() {
                         </select>
                       </div>
 
-                      <div className="sm:col-span-4">
-                        <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-                          Full Name
-                        </label>
-                        <input
-                          type="text"
-                          name="name"
-                          id="name"
-                          value={newAccount.name}
-                          onChange={handleInputChange}
-                          required
-                          className="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
-                        />
-                      </div>
+                      
 
                       <div className="sm:col-span-3">
                         <label htmlFor="username" className="block text-sm font-medium text-gray-700">
@@ -184,7 +354,20 @@ function Accounts() {
                           className="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
                         />
                       </div>
-
+                        <div className="sm:col-span-3">
+                        <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                          Password
+                        </label>
+                        <input
+                          type="password"
+                          name="password"
+                          id="password"
+                          value={newAccount.password}
+                          onChange={handleInputChange}
+                          required
+                          className="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+                        />
+                      </div>
                       <div className="sm:col-span-3">
                         <label htmlFor="email" className="block text-sm font-medium text-gray-700">
                           Email Address
@@ -198,6 +381,21 @@ function Accounts() {
                           className="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
                         />
                       </div>
+                      
+                      <div className="sm:col-span-3">
+                        <label htmlFor="address" className="block text-sm font-medium text-gray-700">
+                          Address
+                        </label>
+                        <input
+                          type="text"
+                          name="address"
+                          id="address"
+                          value={newAccount.address}
+                          onChange={handleInputChange}
+                          className="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+                        />
+                      </div>
+                      
                     </div>
 
                     <div className="flex justify-end">
@@ -213,6 +411,125 @@ function Accounts() {
                         className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                       >
                         Save Account
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              )}
+
+              {showEditForm && (
+                <div className="mt-6 bg-gray-50 p-4 rounded-md border border-gray-200">
+                  <h3 className="text-md font-medium text-gray-900 mb-4">Edit Account</h3>
+                  <form className="space-y-4" onSubmit={handleEditAccount}>
+                    <div className="grid grid-cols-1 gap-y-4 gap-x-4 sm:grid-cols-6">
+                      
+                      <div className="sm:col-span-3">
+                        <label htmlFor="edit-name" className="block text-sm font-medium text-gray-700">
+                          Full Name
+                        </label>
+                        <input
+                          type="text"
+                          name="name"
+                          id="edit-name"
+                          value={editAccount.name}
+                          onChange={handleEditInputChange}
+                          required
+                          className="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+                        />
+                      </div>
+                      
+                      <div className="sm:col-span-1">
+                        <label htmlFor="edit-type" className="block text-sm font-medium text-gray-700">
+                          Account Type
+                        </label>
+                        <select
+                          id="edit-type"
+                          name="type"
+                          value={editAccount.type}
+                          onChange={handleEditInputChange}
+                          className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+                        >
+                          <option value="Resident">Resident</option>
+                          <option value="Tanod">Tanod</option>
+                          <option value="Admin">Admin</option>
+                        </select>
+                      </div>
+
+                      <div className="sm:col-span-1">
+                        <label htmlFor="edit-status" className="block text-sm font-medium text-gray-700">
+                          Account Status
+                        </label>
+                        <select
+                          id="edit-status"
+                          name="status"
+                          value={editAccount.status}
+                          onChange={handleEditInputChange}
+                          className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+                        >
+                          <option value="Pending">Pending</option>
+                          <option value="Verified">Verified</option>
+                        </select>
+                      </div>
+
+                      
+
+                      <div className="sm:col-span-3">
+                        <label htmlFor="edit-username" className="block text-sm font-medium text-gray-700">
+                          Username
+                        </label>
+                        <input
+                          type="text"
+                          name="username"
+                          id="edit-username"
+                          value={editAccount.username}
+                          onChange={handleEditInputChange}
+                          required
+                          className="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+                        />
+                      </div>
+
+                      <div className="sm:col-span-3">
+                        <label htmlFor="edit-email" className="block text-sm font-medium text-gray-700">
+                          Email Address
+                        </label>
+                        <input
+                          type="email"
+                          name="email"
+                          id="edit-email"
+                          value={editAccount.email}
+                          onChange={handleEditInputChange}
+                          className="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+                        />
+                      </div>
+
+                      <div className="sm:col-span-3">
+                          <label htmlFor="edit-address" className="block text-sm font-medium text-gray-700">
+                            Address
+                          </label>
+                          <input
+                            type="text"
+                            name="address"
+                            id="edit-address"
+                            value={editAccount.address}
+                            onChange={handleEditInputChange}
+                            className="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+                          />
+                        </div>
+                    </div>
+
+                    <div className="flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() => setShowEditForm(false)}
+                        className="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 mr-3"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                      >
+                        Update Account
                       </button>
                     </div>
                   </form>
@@ -267,31 +584,38 @@ function Accounts() {
                                 scope="col"
                                 className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                               >
-                                Account
+                                ACCOUNT
                               </th>
                               <th
                                 scope="col"
                                 className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                               >
-                                Type
+                                USER
+                              </th>
+                              
+                              <th
+                                scope="col"
+                                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                              >
+                                TYPE
+                              </th>
+                              <th
+                                  scope="col"
+                                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                                >
+                                  EMAIL
+                                </th>
+                              <th
+                                scope="col"
+                                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                              >
+                                ADDRESS
                               </th>
                               <th
                                 scope="col"
                                 className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                               >
-                                Username
-                              </th>
-                              <th
-                                scope="col"
-                                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                              >
-                                Email
-                              </th>
-                              <th
-                                scope="col"
-                                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                              >
-                                Status
+                                STATUS
                               </th>
                               <th
                                 scope="col"
@@ -304,15 +628,15 @@ function Accounts() {
                           <tbody className="bg-white divide-y divide-gray-200">
                             {filteredAccounts.length > 0 ? (
                               filteredAccounts.map((account) => (
-                                <tr key={account.id} className="hover:bg-gray-50">
+                                <tr key={account.ID} className="hover:bg-gray-50">
                                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    #{account.id}
+                                    #{account.ID}
                                   </td>
                                   <td className="px-6 py-4 whitespace-nowrap">
                                     <div className="flex items-center">
                                       <div className="flex-shrink-0 h-10 w-10">
                                         <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-500">
-                                          {account.type === 'Tanod' ? (
+                                          {account.ROLE === 'Tanod' ? (
                                             <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20.618 5.984A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
                                             </svg>
@@ -324,41 +648,56 @@ function Accounts() {
                                         </div>
                                       </div>
                                       <div className="ml-4">
-                                        <div className="text-sm font-medium text-gray-900">{account.name}</div>
+                                        <div className="text-sm font-medium text-gray-900">{account.NAME || account.USER}</div>
                                       </div>
                                     </div>
                                   </td>
+                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    {account.USER}
+                                  </td>
                                   <td className="px-6 py-4 whitespace-nowrap">
                                     <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                      account.type === 'Tanod' 
+                                      account.ROLE === 'Tanod' 
                                         ? 'bg-blue-100 text-blue-800' 
-                                        : account.type === 'Admin'
+                                        : account.ROLE === 'Admin'
                                         ? 'bg-purple-100 text-purple-800'
                                         : 'bg-green-100 text-green-800'
                                     }`}>
-                                      {account.type}
+                                      {account.ROLE}
                                     </span>
                                   </td>
                                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    {account.username}
+                                    {account.EMAIL || '-'}
                                   </td>
                                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    {account.email || '-'}
-                                  </td>
+                                      {account.ADDRESS
+                                        ? account.ADDRESS.length > 15
+                                          ? account.ADDRESS.slice(0, 15) + '...'
+                                          : account.ADDRESS
+                                        : '-'}
+                                    </td>
                                   <td className="px-6 py-4 whitespace-nowrap">
                                     <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                      account.status === 'Active' 
+                                      account.STATUS === 'Active' || account.STATUS === 'Verified'
                                         ? 'bg-green-100 text-green-800' 
+                                        : account.STATUS === 'Pending'
+                                        ? 'bg-yellow-100 text-yellow-800'
                                         : 'bg-gray-100 text-gray-800'
                                     }`}>
-                                      {account.status}
+                                      {account.STATUS}
                                     </span>
                                   </td>
                                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                    <button className="text-indigo-600 hover:text-indigo-900 mr-3">
+                                    <button 
+                                      className="text-indigo-600 hover:text-indigo-900 mr-3"
+                                      onClick={() => handleEditClick(account)}
+                                    >
                                       Edit
                                     </button>
-                                    <button className="text-red-600 hover:text-red-900">
+                                    <button 
+                                      className="text-red-600 hover:text-red-900"
+                                      onClick={() => handleDeleteAccount(account.ID)}
+                                    >
                                       Delete
                                     </button>
                                   </td>

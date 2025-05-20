@@ -78,6 +78,70 @@ app.post("/login", (req, res) => {
   });
 });
 
+// API endpoint to fetch all users
+app.get("/api/users", (req, res) => {
+  const sql = "SELECT ID, USER, NAME, EMAIL,ADDRESS, ROLE, STATUS FROM users";
+  db.query(sql, (err, results) => {
+    if (err) {
+      console.error("❌ SQL error:", err);
+      return res.status(500).json({ error: "Failed to fetch users" });
+    }
+    res.json(results);
+  });
+});
+
+// Update user by ID
+app.put("/api/users/:id", (req, res) => {
+  const userId = req.params.id;
+  const { username, role, name, email,address, status } = req.body;
+
+  if (!userId || !username || !role || !name) {
+    return res.status(400).json({ success: false, message: "Missing required fields" });
+  }
+
+  const sql = "UPDATE users SET USER = ?, ROLE = ?, NAME = ?, EMAIL = ?, ADDRESS = ?, STATUS = ? WHERE ID = ?";
+  
+  db.query(sql, [username, role, name, email,address, status, userId], (err, result) => {
+    if (err) {
+      if (err.code === "ER_DUP_ENTRY") {
+        return res.status(409).json({ success: false, message: "Username already exists" });
+      }
+      console.error("❌ SQL update error:", err);
+      return res.status(500).json({ success: false, message: "Database error" });
+    }
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    res.json({ success: true, message: "User updated successfully" });
+  });
+});
+
+// Delete user by ID
+app.delete("/api/users/:id", (req, res) => {
+  const userId = req.params.id;
+
+  if (!userId) {
+    return res.status(400).json({ success: false, message: "User ID is required" });
+  }
+
+  const sql = "DELETE FROM users WHERE ID = ?";
+  
+  db.query(sql, [userId], (err, result) => {
+    if (err) {
+      console.error("❌ SQL delete error:", err);
+      return res.status(500).json({ success: false, message: "Database error" });
+    }
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    res.json({ success: true, message: "User deleted successfully" });
+  });
+});
+
 // Fetch incidents
 app.get("/api/incidents", (req, res) => {
   const sql = `
@@ -140,19 +204,19 @@ app.post("/api/incidents", upload.single("image"), (req, res) => {
   );
 });
 
-
-
 // Register route
 app.post("/register", (req, res) => {
-  const { username, password, role } = req.body;
+  const { username, password, role, name, email,address } = req.body;
   const status = "Pending";
 
-  if (!username || !password || !role) {
-    return res.status(400).json({ success: false, message: "Missing required fields" });
-  }
+  if (!username || !password || !role || !name || !email|| !address) {
+  return res.status(400).json({ success: false, message: "Missing required fields" });
+}
 
-  const sql = "INSERT INTO users (USER, PASSWORD, ROLE, STATUS) VALUES (?, ?, ?, ?)";
-  db.query(sql, [username, password, role, status], (err, result) => {
+  // Updated SQL query to include NAME and EMAIL fields
+  const sql = "INSERT INTO users (USER, PASSWORD, ROLE, STATUS, NAME, EMAIL,ADDRESS) VALUES (?, ?, ?, ?, ?, ?,?)";
+  
+  db.query(sql, [username, password, role, status, name, email,address], (err, result) => {
     if (err) {
       if (err.code === "ER_DUP_ENTRY") {
         return res.status(409).json({ success: false, message: "Username already exists" });
