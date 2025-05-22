@@ -98,6 +98,7 @@ app.get("/api/users", (req, res) => {
   });
 });
 
+
 // Update user by ID with image upload support
 app.put("/api/users/:id", upload.single("image"), (req, res) => {
   const userId = req.params.id;
@@ -224,9 +225,9 @@ app.delete("/api/users/:id", (req, res) => {
 // Fetch incidents
 app.get("/api/incidents", (req, res) => {
   const sql = `
-    SELECT id, incident_type, location, status, datetime, image, reported_by
-    FROM incident_report
-    ORDER BY datetime DESC
+    SELECT id, incident_type, location, status, datetime, image, reported_by, latitude, longitude
+      FROM incident_report
+      ORDER BY datetime DESC
   `;
   db.query(sql, (err, results) => {
     if (err) {

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { createPortal } from 'react-dom';
+import UserAvatarDropdown from './AvatarDropdown';
 import './IncidentReport.css';
 
 function IncidentReport() {
@@ -10,6 +11,10 @@ function IncidentReport() {
   const [modalType, setModalType] = useState('');
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [availableTanods, setAvailableTanods] = useState([]);
+  const [selectedTanod, setSelectedTanod] = useState('');
+  const [currentUser, setCurrentUser] = useState(null);
   
   const getStatusColor = (status) => {
     switch (status) {
@@ -45,16 +50,74 @@ function IncidentReport() {
     return () => clearInterval(intervalId);
   }, []);
 
+  // Fetch current user info
+  useEffect(() => {
+    // Get username from localStorage or context
+    const username = localStorage.getItem('username'); // Assuming you store username on login
+    if (username) {
+      fetch(`http://192.168.177.28:3001/api/user/${username}`)
+        .then(res => res.json())
+        .then(data => setCurrentUser(data))
+        .catch(err => console.error("Failed to fetch user info:", err));
+    }
+  }, []);
+
+  const fetchAvailableTanods = () => {
+    // Get today's date
+    const today = new Date().toISOString().slice(0, 10);
+    
+    fetch("http://192.168.177.28:3001/api/logs")
+      .then(res => res.json())
+      .then(data => {
+        // Filter logs for today that have TIME_IN but no TIME_OUT
+        const todayLogs = data.filter(log => {
+          const logDate = log.TIME ? log.TIME.slice(0, 10) : null;
+          return logDate === today && log.TIME_IN && !log.TIME_OUT;
+        });
+        
+        // Get unique users who are currently on duty
+        const availableUsers = todayLogs.reduce((acc, log) => {
+          if (!acc.find(user => user.USER === log.USER)) {
+            acc.push({
+              USER: log.USER,
+              TIME_IN: log.TIME_IN,
+              ID: log.ID
+            });
+          }
+          return acc;
+        }, []);
+        
+        setAvailableTanods(availableUsers);
+      })
+      .catch(err => {
+        console.error("Failed to fetch available tanods:", err);
+        setAvailableTanods([]);
+      });
+  };
+
   const handleActionClick = (incident, type) => {
     setSelectedIncident(incident);
     setModalType(type);
     setShowModal(true);
   };
 
+  const handleAssignTanodClick = (incident) => {
+    setSelectedIncident(incident);
+    fetchAvailableTanods();
+    setShowAssignModal(true);
+  };
+
   const closeModal = () => {
     setShowModal(false);
     setSelectedIncident(null);
     setModalType('');
+  };
+
+  const closeAssignModal = () => {
+    setShowAssignModal(false);
+    setSelectedIncident(null);
+    setSelectedTanod('');
+    setAvailableTanods([]);
   };
   
   const openConfirmationModal = () => {
@@ -63,6 +126,60 @@ function IncidentReport() {
   
   const closeConfirmationModal = () => {
     setShowConfirmation(false);
+  };
+
+  const handleAssignTanod = () => {
+    if (!selectedTanod || !selectedIncident) {
+      alert('Please select a tanod to assign');
+      return;
+    }
+
+    setIsUpdating(true);
+    
+    // Update incident status to "In Progress" and assign tanod
+    fetch(`http://192.168.177.28:3001/api/incidents/${selectedIncident.id}/status`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ 
+        status: 'In Progress',
+        assigned_tanod: selectedTanod 
+      }),
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          // Update the incident in the local state
+          setIncidents(prevIncidents => 
+            prevIncidents.map(inc => 
+              inc.id === selectedIncident.id 
+                ? { ...inc, status: 'In Progress', assigned_tanod: selectedTanod } 
+                : inc
+            )
+          );
+          
+          // Update the selected incident
+          setSelectedIncident({
+            ...selectedIncident, 
+            status: 'In Progress', 
+            assigned_tanod: selectedTanod
+          });
+          
+          // Close assign modal
+          closeAssignModal();
+          alert(`Tanod ${selectedTanod} has been assigned to this incident`);
+        } else {
+          alert('Failed to assign tanod: ' + data.message);
+        }
+      })
+      .catch(err => {
+        console.error('Error assigning tanod:', err);
+        alert('An error occurred while assigning the tanod');
+      })
+      .finally(() => {
+        setIsUpdating(false);
+      });
   };
   
   const handleMarkAsResolved = () => {
@@ -105,6 +222,21 @@ function IncidentReport() {
       });
   };
 
+  const handleLogout = () => {
+    // Clear all stored data
+    localStorage.removeItem('username');
+    localStorage.removeItem('userRole');
+    localStorage.removeItem('token'); // if you have auth tokens
+    localStorage.removeItem('userId'); // if you store user ID
+    
+    // Optional: Clear all localStorage
+    localStorage.clear();
+    
+    // Redirect to login page
+    window.location.href = '/login';
+    // Or use React Router: navigate('/login');
+  };
+
   return (
     <div className="dashboard-container">
       <header className="bg-white shadow-sm">
@@ -136,16 +268,10 @@ function IncidentReport() {
               </nav>
             </div>
             <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <span className="relative inline-block">
-                  <img
-                    className="h-8 w-8 rounded-full"
-                    src="/api/placeholder/150/150"
-                    alt="User avatar"
-                  />
-                  <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-green-400 ring-2 ring-white"></span>
-                </span>
-              </div>
+              <UserAvatarDropdown 
+                currentUser={currentUser} 
+                onLogout={handleLogout}
+              />
             </div>
           </div>
         </div>
@@ -166,9 +292,6 @@ function IncidentReport() {
           <div className="search-container">
             <input type="text" placeholder="Search incidents..." className="search-input" />
           </div>
-          <button className="add-button">
-            <span className="add-icon">+</span> Add Incident
-          </button>
         </div>
 
         <div className="table-container">
@@ -270,6 +393,12 @@ function IncidentReport() {
                   <label>Reported Time</label>
                   <div className="modal-value">{new Date(selectedIncident.datetime).toLocaleString()}</div>
                 </div>
+                {selectedIncident.assigned_tanod && (
+                  <div className="modal-field">
+                    <label>Assigned Tanod</label>
+                    <div className="modal-value">{selectedIncident.assigned_tanod}</div>
+                  </div>
+                )}
               </div>
 
               <div className="modal-footer">
@@ -279,11 +408,63 @@ function IncidentReport() {
                       <button className="btn resolve-btn" onClick={openConfirmationModal}>Mark as Resolved</button>
                     )}
                     {selectedIncident.status !== 'Resolved' && (
-                      <button className="btn secondary">Assign Tanod</button>
+                      <button className="btn secondary" onClick={() => handleAssignTanodClick(selectedIncident)}>Assign Tanod</button>
                     )}
                   </>
                 )}
                 <button className="btn close" onClick={closeModal}>Close</button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )
+      }
+
+      {showAssignModal && selectedIncident && 
+        createPortal(
+          <div className="modal-overlay" onClick={closeAssignModal}>
+            <div className="modal-container" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <h2>Assign Tanod</h2>
+                <button className="modal-close" onClick={closeAssignModal}>×</button>
+              </div>
+              <div className="modal-body">
+                <div className="modal-field">
+                  <label>Incident ID: #{selectedIncident.id}</label>
+                  <div className="modal-value">{selectedIncident.incident_type}</div>
+                </div>
+                <div className="modal-field">
+                  <label>Available Tanods (Currently On Duty)</label>
+                  {availableTanods.length === 0 ? (
+                    <div className="modal-value" style={{color: '#666', fontStyle: 'italic'}}>
+                      No tanods are currently on duty
+                    </div>
+                  ) : (
+                    <select 
+                      className="tanod-select"
+                      value={selectedTanod}
+                      onChange={(e) => setSelectedTanod(e.target.value)}
+                    >
+                      <option value="">Select a tanod...</option>
+                      {availableTanods.map((tanod) => (
+                        <option key={tanod.ID} value={tanod.USER}>
+                          {tanod.USER} (On duty since: {new Date(tanod.TIME_IN).toLocaleTimeString()})
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+              </div>
+
+              <div className="modal-footer">
+                <button 
+                  className="btn primary" 
+                  onClick={handleAssignTanod}
+                  disabled={isUpdating || !selectedTanod || availableTanods.length === 0}
+                >
+                  {isUpdating ? 'Assigning...' : 'Assign Tanod'}
+                </button>
+                <button className="btn close" onClick={closeAssignModal}>Cancel</button>
               </div>
             </div>
           </div>,

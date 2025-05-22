@@ -1,4 +1,4 @@
-// components/NavBar.tsx - Updated with TIME-IN
+// components/NavBar.tsx - Updated with removed sidebar items and navigation to notifications page
 import React, { useState, useRef, useEffect } from "react";
 import {
   View,
@@ -9,11 +9,13 @@ import {
   Animated,
   TouchableWithoutFeedback,
   Image,
+  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import type { RootStackParamList } from "./app"; // Adjust the path if needed
+import type { RootStackParamList } from "./app";
+import axios from "axios";
 
 const screenWidth = Dimensions.get("window").width;
 
@@ -22,13 +24,115 @@ interface NavBarProps {
   userImage?: string | null;
 }
 
+interface LogEntry {
+  ID: number;
+  USER: string;
+  TIME: string;
+  ACTION: string;
+  TIME_IN?: string;
+  TIME_OUT?: string;
+  LOCATION?: string;
+}
+
 const NavBar: React.FC<NavBarProps> = ({ username, userImage }) => {
   const [sidebarVisible, setSidebarVisible] = useState(false);
   const [userMenuVisible, setUserMenuVisible] = useState(false);
-  const [notificationCount] = useState(1);
+  const [notificationCount, setNotificationCount] = useState(0);
+  const [notifications, setNotifications] = useState<LogEntry[]>([]);
+  const [lastLogId, setLastLogId] = useState<number | null>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
   const sidebarAnim = useRef(new Animated.Value(-screenWidth * 0.5)).current;
 
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+
+  // Fetch user logs and check for new notifications
+  const fetchUserLogs = async () => {
+    if (!username) return;
+    
+    try {
+      const response = await axios.get(`http://192.168.177.28:3001/api/logs/${username}`);
+      const logs = response.data;
+      
+      console.log('Fetched logs for user:', username, 'Count:', logs.length);
+      
+      if (logs && logs.length > 0) {
+        const latestLog = logs[0]; // Most recent log (ordered by TIME DESC)
+        
+        console.log('Latest log ID:', latestLog.ID, 'Last known ID:', lastLogId);
+        
+        // If this is the first time loading
+        if (!isInitialized) {
+          setLastLogId(latestLog.ID);
+          setNotifications(logs.slice(0, 5)); // Show last 5 logs
+          setIsInitialized(true);
+          console.log('Initialized with latest log ID:', latestLog.ID);
+        } else if (latestLog.ID > (lastLogId || 0)) {
+          // New log detected - show notification
+          const newLogsCount = logs.filter((log: LogEntry) => log.ID > (lastLogId || 0)).length;
+          setNotificationCount(prev => prev + newLogsCount);
+          setLastLogId(latestLog.ID);
+          setNotifications(logs.slice(0, 5)); // Update with latest logs
+          
+          console.log('New log detected! New logs count:', newLogsCount);
+          
+          // Show alert for new notification
+          const notificationMessage = getLogDisplayText(latestLog);
+          Alert.alert(
+            "New Activity Logged",
+            notificationMessage,
+            [
+              { text: "View All", onPress: () => handleNotificationPress() },
+              { text: "Dismiss", style: "cancel" }
+            ]
+          );
+        }
+      } else {
+        console.log('No logs found for user:', username);
+      }
+    } catch (error) {
+      console.error("Error fetching user logs:", error);
+      // Don't show error alerts for network issues during background polling
+    }
+  };
+
+  // Helper function to format log display text
+  const getLogDisplayText = (log: LogEntry) => {
+    const date = new Date(log.TIME).toLocaleDateString();
+    const time = new Date(log.TIME).toLocaleTimeString();
+    let action = log.ACTION || 'Activity';
+    
+    // Format based on TIME_IN and TIME_OUT
+    if (log.TIME_IN && log.TIME_OUT) {
+      const timeIn = new Date(log.TIME_IN).toLocaleTimeString();
+      const timeOut = new Date(log.TIME_OUT).toLocaleTimeString();
+      action = `Time In: ${timeIn}, Time Out: ${timeOut}`;
+    } else if (log.TIME_IN) {
+      const timeIn = new Date(log.TIME_IN).toLocaleTimeString();
+      action = `Time In: ${timeIn}`;
+    } else if (log.TIME_OUT) {
+      const timeOut = new Date(log.TIME_OUT).toLocaleTimeString();
+      action = `Time Out: ${timeOut}`;
+    }
+    
+    return `${date} ${time}\n${action}${log.LOCATION ? `\nLocation: ${log.LOCATION}` : ''}`;
+  };
+
+  // Poll for new logs every 15 seconds (reduced from 30 for more responsiveness)
+  useEffect(() => {
+    if (username) {
+      console.log('Setting up polling for user:', username);
+      fetchUserLogs(); // Initial fetch
+      
+      const interval = setInterval(() => {
+        fetchUserLogs();
+      }, 15000); // Check every 15 seconds
+      
+      return () => {
+        console.log('Cleaning up polling interval');
+        clearInterval(interval);
+      };
+    }
+  }, [username, lastLogId, isInitialized]);
 
   useEffect(() => {
     Animated.timing(sidebarAnim, {
@@ -37,6 +141,14 @@ const NavBar: React.FC<NavBarProps> = ({ username, userImage }) => {
       useNativeDriver: false,
     }).start();
   }, [sidebarVisible]);
+
+  const handleNotificationPress = () => {
+    // Reset notification count when opened
+    setNotificationCount(0);
+    
+    // Navigate to notifications page
+    navigation.navigate("Notifications", { username: username ?? "" });
+  };
 
   const closeMenus = () => {
     setUserMenuVisible(false);
@@ -88,12 +200,14 @@ const NavBar: React.FC<NavBarProps> = ({ username, userImage }) => {
         <View style={styles.headerRight}>
           <TouchableOpacity
             style={styles.iconButton}
-            onPress={() => console.log("Notification clicked")}
+            onPress={handleNotificationPress}
           >
             <Ionicons name="notifications-outline" size={24} color="#fff" />
             {notificationCount > 0 && (
               <View style={styles.badge}>
-                <Text style={styles.badgeText}>{notificationCount}</Text>
+                <Text style={styles.badgeText}>
+                  {notificationCount > 99 ? '99+' : notificationCount}
+                </Text>
               </View>
             )}
           </TouchableOpacity>
