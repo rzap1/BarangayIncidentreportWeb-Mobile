@@ -1,22 +1,57 @@
 // Home.tsx
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { useRoute, RouteProp, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import axios from "axios";
 import NavBar from "./NavBar";
 import type { RootStackParamList } from "./app"; // ✅ Use shared type from App.tsx
 
 type HomeRouteProp = RouteProp<RootStackParamList, "Home">;
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, "Home">;
 
+interface UserData {
+  ID: string;
+  USER: string;
+  NAME: string;
+  EMAIL: string;
+  ADDRESS: string;
+  ROLE: string;
+  STATUS: string;
+  IMAGE?: string | null;
+}
+
 const Home: React.FC = () => {
   const route = useRoute<HomeRouteProp>();
   const navigation = useNavigation<NavigationProp>();
   const username = route.params?.username || "";
+  const [userData, setUserData] = useState<UserData | null>(null);
+  const [loading, setLoading] = useState(true);
+  
+  // Fetch user data on component mount
+  useEffect(() => {
+    if (username) {
+      fetchUserData();
+    }
+  }, [username]);
+  
+  const fetchUserData = async () => {
+    try {
+      const response = await axios.get(`http://192.168.177.28:3001/api/user/${username}`);
+      
+      if (response.data) {
+        setUserData(response.data);
+      }
+    } catch (error) {
+      console.error("Error fetching user data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
   
   return (
     <View style={styles.container}>
-      <NavBar username={username} />
+      <NavBar username={username} userImage={userData?.IMAGE} />
       <View style={styles.body}>
         <Text style={styles.greeting}>Hi {username}, Welcome to</Text>
         <View style={styles.logoCircle}>

@@ -8,39 +8,42 @@ function IncidentReport() {
   const [showModal, setShowModal] = useState(false);
   const [selectedIncident, setSelectedIncident] = useState(null);
   const [modalType, setModalType] = useState('');
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+  
   const getStatusColor = (status) => {
-  switch (status) {
-    case 'Under Review':
-      return 'status-yellow';
-    case 'In Progress':
-      return 'status-blue';
-    case 'Resolved':
-      return 'status-green';
-    default:
-      return '';
-  }
-};
+    switch (status) {
+      case 'Under Review':
+        return 'status-yellow';
+      case 'In Progress':
+        return 'status-blue';
+      case 'Resolved':
+        return 'status-green';
+      default:
+        return '';
+    }
+  };
 
   useEffect(() => {
-      const fetchData = () => {
-      fetch("http://192.168.180.28:3001/api/incidents")
-      .then(res => res.json())
-      .then(data => setIncidents(data))
-      .catch(err => {
-      console.error("Failed to fetch incidents:", err);
-      setIncidents([]);
-      });
-      };
+    const fetchData = () => {
+      fetch("http://192.168.177.28:3001/api/incidents")
+        .then(res => res.json())
+        .then(data => setIncidents(data))
+        .catch(err => {
+          console.error("Failed to fetch incidents:", err);
+          setIncidents([]);
+        });
+    };
 
-      // Initial fetch
-      fetchData();
+    // Initial fetch
+    fetchData();
 
-      // Set interval for auto-refresh (e.g. every 30 seconds)
-      const intervalId = setInterval(fetchData, 3000);
+    // Set interval for auto-refresh (e.g. every 30 seconds)
+    const intervalId = setInterval(fetchData, 3000);
 
-      // Clear interval on component unmount
-      return () => clearInterval(intervalId);
-      }, []);
+    // Clear interval on component unmount
+    return () => clearInterval(intervalId);
+  }, []);
 
   const handleActionClick = (incident, type) => {
     setSelectedIncident(incident);
@@ -52,6 +55,54 @@ function IncidentReport() {
     setShowModal(false);
     setSelectedIncident(null);
     setModalType('');
+  };
+  
+  const openConfirmationModal = () => {
+    setShowConfirmation(true);
+  };
+  
+  const closeConfirmationModal = () => {
+    setShowConfirmation(false);
+  };
+  
+  const handleMarkAsResolved = () => {
+    if (!selectedIncident) return;
+    
+    setIsUpdating(true);
+    
+    fetch(`http://192.168.177.28:3001/api/incidents/${selectedIncident.id}/status`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ status: 'Resolved' }),
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          // Update the incident in the local state
+          setIncidents(prevIncidents => 
+            prevIncidents.map(inc => 
+              inc.id === selectedIncident.id ? { ...inc, status: 'Resolved' } : inc
+            )
+          );
+          
+          // Update the selected incident
+          setSelectedIncident({...selectedIncident, status: 'Resolved'});
+          
+          // Close confirmation modal
+          setShowConfirmation(false);
+        } else {
+          alert('Failed to update status: ' + data.message);
+        }
+      })
+      .catch(err => {
+        console.error('Error updating incident status:', err);
+        alert('An error occurred while updating the status');
+      })
+      .finally(() => {
+        setIsUpdating(false);
+      });
   };
 
   return (
@@ -134,46 +185,44 @@ function IncidentReport() {
               </tr>
             </thead>
             <tbody>
-  {incidents.length === 0 ? (
-    <tr>
-      <td colSpan="7" style={{textAlign: 'center'}}>No incidents found.</td>
-    </tr>
-  ) : (
-    incidents.map((item) => (
-      <tr key={item.id}>
-        <td>#{item.id}</td>
-        <td className="incident-cell">
-          <div className="incident-icon">
-            <img
-              src={`http://192.168.180.28:3001/uploads/${item.image}`}
-              alt="Incident"
-              className="small-avatar"
-            />
-
-          </div>
-        </td>
-        <td>
-          <span className="type-badge">{item.incident_type || "N/A"}</span>
-        </td>
-        <td>{item.reported_by || "Unknown"}</td>
-        <td>{item.location || "Not specified"}</td>
-        <td>
-          <span className={`status-badge ${getStatusColor(item.status)}`}>{item.status}</span>
-        </td>
-        <td className="actions-cell">
-          <button 
-            className="edit-button"
-            onClick={() => handleActionClick(item, 'VIEW')}
-          >
-            View
-          </button>
-          <button className="delete-button">Delete</button>
-        </td>
-      </tr>
-    ))
-  )}
-</tbody>
-
+              {incidents.length === 0 ? (
+                <tr>
+                  <td colSpan="7" style={{textAlign: 'center'}}>No incidents found.</td>
+                </tr>
+              ) : (
+                incidents.map((item) => (
+                  <tr key={item.id}>
+                    <td>#{item.id}</td>
+                    <td className="incident-cell">
+                      <div className="incident-icon">
+                        <img
+                          src={`http://192.168.177.28:3001/uploads/${item.image}`}
+                          alt="Incident"
+                          className="small-avatar"
+                        />
+                      </div>
+                    </td>
+                    <td>
+                      <span className="type-badge">{item.incident_type || "N/A"}</span>
+                    </td>
+                    <td>{item.reported_by || "Unknown"}</td>
+                    <td>{item.location || "Not specified"}</td>
+                    <td>
+                      <span className={`status-badge ${getStatusColor(item.status)}`}>{item.status}</span>
+                    </td>
+                    <td className="actions-cell">
+                      <button 
+                        className="edit-button"
+                        onClick={() => handleActionClick(item, 'VIEW')}
+                      >
+                        View
+                      </button>
+                      <button className="delete-button">Delete</button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
           </table>
         </div>
       </div>
@@ -199,11 +248,10 @@ function IncidentReport() {
                   <label>Incident Photo</label>
                   <div className="modal-image-container">
                     <img 
-                      src={`http://192.168.180.28:3001/uploads/${selectedIncident.image}`} 
+                      src={`http://192.168.177.28:3001/uploads/${selectedIncident.image}`} 
                       alt="Incident" 
                       className="modal-image" 
                     />
-
                   </div>
                 </div>
                 <div className="modal-field">
@@ -227,11 +275,44 @@ function IncidentReport() {
               <div className="modal-footer">
                 {modalType === 'VIEW' && (
                   <>
-                    <button className="btn primary">Mark as Resolved</button>
-                    <button className="btn secondary">Assign Tanod</button>
+                    {selectedIncident.status !== 'Resolved' && (
+                      <button className="btn resolve-btn" onClick={openConfirmationModal}>Mark as Resolved</button>
+                    )}
+                    {selectedIncident.status !== 'Resolved' && (
+                      <button className="btn secondary">Assign Tanod</button>
+                    )}
                   </>
                 )}
                 <button className="btn close" onClick={closeModal}>Close</button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )
+      }
+      
+      {showConfirmation && selectedIncident && 
+        createPortal(
+          <div className="modal-overlay" onClick={closeConfirmationModal}>
+            <div className="confirmation-dialog" onClick={(e) => e.stopPropagation()}>
+              <div className="confirmation-header">
+                <h3>Confirm Action</h3>
+                <button className="modal-close" onClick={closeConfirmationModal}>×</button>
+              </div>
+              <div className="confirmation-body">
+                <p>Are you sure you want to mark this incident as resolved?</p>
+                <p>Incident ID: #{selectedIncident.id}</p>
+                <p>Type: {selectedIncident.incident_type}</p>
+              </div>
+              <div className="confirmation-footer">
+                <button 
+                  className="btn primary" 
+                  onClick={handleMarkAsResolved}
+                  disabled={isUpdating}
+                >
+                  {isUpdating ? 'Updating...' : 'Confirm'}
+                </button>
+                <button className="btn close" onClick={closeConfirmationModal}>Cancel</button>
               </div>
             </div>
           </div>,

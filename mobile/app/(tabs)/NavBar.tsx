@@ -1,4 +1,4 @@
-// components/NavBar.tsx
+// components/NavBar.tsx - Updated with TIME-IN
 import React, { useState, useRef, useEffect } from "react";
 import {
   View,
@@ -8,6 +8,7 @@ import {
   Dimensions,
   Animated,
   TouchableWithoutFeedback,
+  Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
@@ -18,9 +19,10 @@ const screenWidth = Dimensions.get("window").width;
 
 interface NavBarProps {
   username?: string;
+  userImage?: string | null;
 }
 
-const NavBar: React.FC<NavBarProps> = ({ username }) => {
+const NavBar: React.FC<NavBarProps> = ({ username, userImage }) => {
   const [sidebarVisible, setSidebarVisible] = useState(false);
   const [userMenuVisible, setUserMenuVisible] = useState(false);
   const [notificationCount] = useState(1);
@@ -61,14 +63,20 @@ const NavBar: React.FC<NavBarProps> = ({ username }) => {
           style={styles.sidebarItem}
           onPress={() => {
             setSidebarVisible(false);
-            navigation.navigate("IncidentReport");
+            navigation.navigate("IncidentReport", { username: username ?? "" });
           }}
         >
           <Text style={styles.sidebarItemText}>Report Incident</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.sidebarItem}>
-          <Text style={styles.sidebarItemText}>TBD</Text>
+        <TouchableOpacity 
+          style={styles.sidebarItem}
+          onPress={() => {
+            setSidebarVisible(false);
+            navigation.navigate("TimeIn", { username: username ?? "" });
+          }}
+        >
+          <Text style={styles.sidebarItemText}>TIME-IN</Text>
         </TouchableOpacity>
       </Animated.View>
 
@@ -76,8 +84,6 @@ const NavBar: React.FC<NavBarProps> = ({ username }) => {
         <TouchableOpacity onPress={() => setSidebarVisible(true)}>
           <Ionicons name="menu" size={24} color="#fff" />
         </TouchableOpacity>
-
-      
 
         <View style={styles.headerRight}>
           <TouchableOpacity
@@ -96,7 +102,15 @@ const NavBar: React.FC<NavBarProps> = ({ username }) => {
             style={styles.iconButton}
             onPress={() => setUserMenuVisible(!userMenuVisible)}
           >
-            <Ionicons name="person-circle-outline" size={30} color="#fff" />
+            {userImage ? (
+              <Image 
+                source={{ uri: `http://192.168.177.28:3001/uploads/${userImage}` }}
+                style={styles.profileImage}
+                onError={() => console.log("Error loading profile image")}
+              />
+            ) : (
+              <Ionicons name="person-circle-outline" size={30} color="#fff" />
+            )}
           </TouchableOpacity>
         </View>
 
@@ -104,24 +118,26 @@ const NavBar: React.FC<NavBarProps> = ({ username }) => {
           <View style={styles.userMenu}>
             <TouchableOpacity
               style={styles.userMenuItem}
-              onPress={() => setUserMenuVisible(false)}
+              onPress={() => {
+                setUserMenuVisible(false);
+                navigation.navigate("Profile", { username: username ?? "" });
+              }}
             >
               <Text style={styles.userMenuText}>Profile</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-                style={styles.userMenuItem}
-                onPress={() => {
-                  setUserMenuVisible(false);
-                  navigation.reset({
-                    index: 0,
-                    routes: [{ name: "Login" }],
-                  });
-                }}
-              >
-                <Text style={styles.userMenuText}>Logout</Text>
+              style={styles.userMenuItem}
+              onPress={() => {
+                setUserMenuVisible(false);
+                navigation.reset({
+                  index: 0,
+                  routes: [{ name: "Login" }],
+                });
+              }}
+            >
+              <Text style={styles.userMenuText}>Logout</Text>
             </TouchableOpacity>
-
           </View>
         )}
       </View>
@@ -211,6 +227,13 @@ const styles = StyleSheet.create({
   },
   userMenuItem: { paddingVertical: 5 },
   userMenuText: { fontWeight: "bold" },
+  profileImage: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    borderWidth: 1,
+    borderColor: '#fff',
+  },
 });
 
 export default NavBar;

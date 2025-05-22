@@ -17,14 +17,12 @@ import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "./app";
 import { Ionicons, Feather } from "@expo/vector-icons";
-import NavBar from "./NavBar";
 
 type NavigationProp = NativeStackNavigationProp<
   RootStackParamList,
   "IncidentReport"
 >;
 
-// New: Route prop type for IncidentReport to get params
 type IncidentReportRouteProp = RouteProp<RootStackParamList, "IncidentReport">;
 
 const DEFAULT_COORDS = {
@@ -36,7 +34,6 @@ const IncidentReport: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<IncidentReportRouteProp>();
 
-  // New: get username from route params, default to "unknown" if not provided
   const username = route.params?.username ?? "unknown";
 
   const [incidentType, setIncidentType] = useState("");
@@ -167,7 +164,6 @@ const IncidentReport: React.FC = () => {
     setImage(null);
   };
 
-  // Modified handleSubmit to add reported_by (username)
   const handleSubmit = async () => {
     try {
       const formData = new FormData();
@@ -178,7 +174,6 @@ const IncidentReport: React.FC = () => {
       formData.append("datetime", formattedDateTime);
       formData.append("address", address);
       formData.append("reported_by", username);
-
 
       if (image) {
         const filename = image.split("/").pop()!;
@@ -191,7 +186,7 @@ const IncidentReport: React.FC = () => {
         } as any);
       }
 
-      const response = await fetch("http://192.168.180.28:3001/api/incidents", {
+      const response = await fetch("http://192.168.177.28:3001/api/incidents", {
         method: "POST",
         body: formData,
       });
@@ -218,7 +213,18 @@ const IncidentReport: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <NavBar />
+      {/* Custom header with back button instead of NavBar */}
+      <View style={styles.customHeader}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+        >
+          <Ionicons name="arrow-back" size={24} color="#fff" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Report Incident</Text>
+        <View style={styles.headerPlaceholder} />
+      </View>
+
       <ScrollView contentContainerStyle={styles.body}>
         <Text style={styles.reportTitle}>OH NO!</Text>
         <Text style={styles.reportTitle}>HURRY UP AND REPORT THE INCIDENT</Text>
@@ -285,9 +291,11 @@ const IncidentReport: React.FC = () => {
           />
           <Text style={styles.attachPhotoButtonText}>ATTACH PHOTO</Text>
         </TouchableOpacity>
-          <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
+
+        <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
           <Text style={styles.submitButtonText}>SUBMIT</Text>
         </TouchableOpacity>
+
         <View style={[styles.inputGroup, { display: "none" }]}>
           <Text style={styles.inputLabel}>Latitude</Text>
           <TextInput style={styles.input} value={latInput} editable={false} />
@@ -309,8 +317,6 @@ const IncidentReport: React.FC = () => {
             <Image source={{ uri: image }} style={styles.imagePreview} />
           </View>
         )}
-
-        
       </ScrollView>
     </View>
   );
@@ -318,6 +324,29 @@ const IncidentReport: React.FC = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f0f0f0" },
+  // New custom header styles
+  customHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingTop: 60,
+    backgroundColor: "#555",
+    paddingBottom: 10,
+  },
+  backButton: {
+    padding: 5,
+  },
+  headerTitle: {
+    fontWeight: "bold",
+    fontSize: 18,
+    color: "#fff",
+    flex: 1,
+    textAlign: "center",
+  },
+  headerPlaceholder: {
+    width: 34, // Same width as back button to center the title
+  },
   body: { padding: 20, alignItems: "center" },
   reportTitle: { fontSize: 16, fontWeight: "bold", marginBottom: 5 },
   sadEmoji: { fontSize: 24, marginBottom: 15 },

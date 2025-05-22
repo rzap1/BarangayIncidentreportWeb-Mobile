@@ -20,7 +20,7 @@ const Login = ({ setShowLogin, onLoginSuccess }) => {
     }
 
     try {
-      const res = await axios.post("http://192.168.180.28:3001/login", {
+      const res = await axios.post("http://192.168.177.28:3001/login", {
         username,
         password,
       });
