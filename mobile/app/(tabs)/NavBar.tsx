@@ -50,7 +50,7 @@ const NavBar: React.FC<NavBarProps> = ({ username, userImage }) => {
     if (!username) return;
     
     try {
-      const response = await axios.get(`http://192.168.177.28:3001/api/logs/${username}`);
+      const response = await axios.get(`http://192.168.164.28:3001/api/logs/${username}`);
       const logs = response.data;
       
       console.log('Fetched logs for user:', username, 'Count:', logs.length);
@@ -218,7 +218,7 @@ const NavBar: React.FC<NavBarProps> = ({ username, userImage }) => {
           >
             {userImage ? (
               <Image 
-                source={{ uri: `http://192.168.177.28:3001/uploads/${userImage}` }}
+                source={{ uri: `http://192.168.164.28:3001/uploads/${userImage}` }}
                 style={styles.profileImage}
                 onError={() => console.log("Error loading profile image")}
               />

@@ -38,7 +38,7 @@ const UserAvatarDropdown = ({ currentUser, onLogout }) => {
         <img
           className="avatar-image"
           src={currentUser && currentUser.IMAGE 
-            ? `http://192.168.177.28:3001/uploads/${currentUser.IMAGE}` 
+            ? `http://192.168.164.28:3001/uploads/${currentUser.IMAGE}` 
             : "/api/placeholder/150/150"
           }
           alt="User avatar"
@@ -48,16 +48,7 @@ const UserAvatarDropdown = ({ currentUser, onLogout }) => {
       
       {showProfileDropdown && (
         <div className="user-dropdown">
-          <div className="dropdown-header">
-            <div className="user-info">
-              <div className="user-name">
-                {currentUser ? currentUser.NAME : 'Admin User'}
-              </div>
-              <div className="user-role">
-                {currentUser ? currentUser.ROLE : 'Administrator'}
-              </div>
-            </div>
-          </div>
+        
           <div className="dropdown-divider"></div>
           <button className="dropdown-item" onClick={handleProfileClick}>
             <span className="dropdown-icon">👤</span>

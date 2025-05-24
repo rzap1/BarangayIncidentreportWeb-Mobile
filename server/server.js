@@ -287,7 +287,7 @@ app.post("/api/incidents", upload.single("image"), (req, res) => {
 // Update incident status by ID
 app.put("/api/incidents/:id/status", (req, res) => {
   const incidentId = req.params.id;
-  const { status } = req.body;
+  const { status, assigned_tanod } = req.body;
 
   if (!incidentId || !status) {
     return res.status(400).json({ success: false, message: "Incident ID and status are required" });
@@ -302,9 +302,19 @@ app.put("/api/incidents/:id/status", (req, res) => {
     });
   }
 
-  const sql = "UPDATE incident_report SET status = ? WHERE id = ?";
+  // Build SQL query dynamically
+  let sql = "UPDATE incident_report SET status = ?";
+  let params = [status, incidentId];
+
+  // Add assigned to query if provided
+  if (assigned_tanod) {
+    sql = "UPDATE incident_report SET status = ?, assigned = ? WHERE id = ?";
+    params = [status, assigned_tanod, incidentId];
+  } else {
+    sql += " WHERE id = ?";
+  }
   
-  db.query(sql, [status, incidentId], (err, result) => {
+  db.query(sql, params, (err, result) => {
     if (err) {
       console.error("❌ SQL update error:", err);
       return res.status(500).json({ success: false, message: "Database error" });
@@ -317,7 +327,8 @@ app.put("/api/incidents/:id/status", (req, res) => {
     res.json({ 
       success: true, 
       message: "Incident status updated successfully",
-      status: status
+      status: status,
+      assigned_tanod: assigned_tanod || null
     });
   });
 });
@@ -349,7 +360,7 @@ app.post("/register", (req, res) => {
 
 // API endpoint to create a new schedule entry
 app.post("/api/schedules", (req, res) => {
-  const { user, status, time } = req.body;
+  const { user, time } = req.body; // Removed status from destructuring
   
   if (!user) {
     return res.status(400).json({ success: false, message: "User is required" });
@@ -384,15 +395,15 @@ app.post("/api/schedules", (req, res) => {
         return res.status(409).json({ success: false, message: "User already has a schedule entry" });
       }
       
-      // Insert the new schedule entry with the same ID as the user and include IMAGE
+      // Insert the new schedule entry WITHOUT STATUS
       const insertSQL = `
-        INSERT INTO schedules (ID, USER, STATUS, TIME, IMAGE)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO schedules (ID, USER, TIME, IMAGE)
+        VALUES (?, ?, ?, ?)
       `;
       
       db.query(
         insertSQL, 
-        [userId, user, status || 'Off Duty', time || getGMT8Time(), userImage], 
+        [userId, user, time || getGMT8Time(), userImage], 
         (insertErr, result) => {
           if (insertErr) {
             console.error("❌ SQL insert error:", insertErr);
@@ -416,7 +427,7 @@ app.post("/api/sync-tanods", (req, res) => {
   const getUsersSQL = `
     SELECT ID, USER, NAME, IMAGE 
     FROM users 
-    WHERE ROLE = 'Tanod'
+    WHERE ROLE = 'Tanod' AND STATUS = 'Verified'
   `;
   
   db.query(getUsersSQL, (err, users) => {
@@ -449,10 +460,10 @@ app.post("/api/sync-tanods", (req, res) => {
         } else {
           if (exists.length === 0) {
             // User doesn't exist in schedules, add them with SAME ID as users table
-            // Include the IMAGE from users table
+            // Include the IMAGE from users table - NO LOGS INSERTION
             const insertSQL = `
               INSERT INTO schedules (ID, USER, STATUS, TIME, IMAGE)
-              VALUES (?, ?, 'Available', NULL, ?)
+              VALUES (?, ?, 'OFF DUTY', NULL, ?)
             `;
             
             // Ensure the ID is properly passed as a number if needed
@@ -565,7 +576,7 @@ app.get("/api/logs/:user", (req, res) => {
 // Schedule update endpoint
 app.put("/api/schedules/:id", (req, res) => {
   const scheduleId = req.params.id;
-  const { status, time } = req.body;
+  const { status, time, location } = req.body;
   
   if (!scheduleId) {
     return res.status(400).json({ success: false, message: "Schedule ID is required" });
@@ -607,12 +618,68 @@ app.put("/api/schedules/:id", (req, res) => {
       return res.status(404).json({ success: false, message: "Schedule entry not found" });
     }
     
+    // If time is being updated, also save to logs table with the SELECTED time (not current time)
+    if (time !== undefined) {
+      const logSql = `
+        INSERT INTO logs (USER, TIME, LOCATION, ACTION)
+        SELECT USER, ?, ?, 'NEW SCHEDULE'
+        FROM schedules 
+        WHERE ID = ?
+      `;
+      
+      db.query(logSql, [time, location || 'Not specified', scheduleId], (logErr) => {
+        if (logErr) {
+          console.error("❌ Error saving to logs:", logErr);
+          // Don't fail the main update, just log the error
+        }
+      });
+    }
+    
     res.json({ 
       success: true, 
       message: "Schedule updated successfully"
     });
   });
 });
+
+// Helper function to calculate status based on time logs
+function calculateStatusFromLogs(logs, currentTime) {
+  if (!logs || logs.length === 0) {
+    return 'OFF DUTY';
+  }
+  
+  const now = new Date(currentTime);
+  const today = now.toISOString().slice(0, 10);
+  
+  // Find today's log entry
+  const todayLog = logs.find(log => {
+    const logDate = new Date(log.TIME).toISOString().slice(0, 10);
+    return logDate === today;
+  });
+  
+  if (!todayLog) {
+    return 'OFF DUTY'; // No TIME entries today = "Off Duty"
+  }
+  
+  // If there's both TIME_IN and TIME_OUT today = "Off Duty"
+  if (todayLog.TIME_IN && todayLog.TIME_OUT) {
+    return 'OFF DUTY';
+  }
+  
+  // If there's a recent TIME_IN but no TIME_OUT today
+  if (todayLog.TIME_IN && !todayLog.TIME_OUT) {
+    const timeInDate = new Date(todayLog.TIME_IN);
+    const hoursDiff = (now - timeInDate) / (1000 * 60 * 60); // Hours difference
+    
+    if (hoursDiff >= 8) {
+      return 'OFF DUTY'; // Past 8 hours or more = "Off Duty"
+    } else {
+      return 'ON DUTY'; // Recent TIME_IN but no TIME_OUT today = "On Duty"
+    }
+  }
+  
+  return 'OFF DUTY';
+}
 
 // API endpoint to delete schedule entry
 app.delete("/api/schedules/:id", (req, res) => {
@@ -653,7 +720,7 @@ app.get("/api/schedules", (req, res) => {
   });
 });
 
-// API endpoint to check user's schedule and log status for current time (UPDATED)
+// Updated API endpoint to check user's schedule and log status for current time
 app.get("/api/user-time-status/:username", async (req, res) => {
   const username = req.params.username;
   
@@ -688,28 +755,34 @@ app.get("/api/user-time-status/:username", async (req, res) => {
       });
     });
 
-    // Determine scheduled time - only use log's TIME if it's from today
-    let scheduledTime = schedule.TIME; // Default to schedule's TIME
+    // Calculate hardcoded status based on today's log TIME_IN and TIME_OUT
+    let calculatedStatus = 'Off Duty'; // Default status
     
-    if (todayLog && todayLog.TIME) {
-      // Check if the log's TIME is from today
-      const logDate = todayLog.TIME.slice(0, 10); // Get date part from log's TIME
-      if (logDate === today) {
-        scheduledTime = todayLog.TIME;
+    if (todayLog) {
+      if (todayLog.TIME_IN && !todayLog.TIME_OUT) {
+        // Has TIME_IN but no TIME_OUT = On Duty
+        calculatedStatus = 'On Duty';
+      } else if (todayLog.TIME_IN && todayLog.TIME_OUT) {
+        // Has both TIME_IN and TIME_OUT = Off Duty
+        calculatedStatus = 'Off Duty';
       }
     }
 
-    // Check if schedule is set (not null or empty)
-    const hasValidSchedule = scheduledTime && scheduledTime.trim() !== '';
+    // Use logs TIME instead of schedule TIME for scheduledTime
+    let formattedScheduledTime = null;
+    if (todayLog && todayLog.TIME) {
+      // Use the TIME from logs table instead of schedules table
+      formattedScheduledTime = todayLog.TIME;
+    }
 
     res.json({
       success: true,
       schedule: {
         id: schedule.ID,
         user: schedule.USER,
-        status: schedule.STATUS,
+        status: calculatedStatus, // Hardcoded status based on logs
         location: schedule.LOCATION || null,
-        scheduledTime: scheduledTime
+        scheduledTime: formattedScheduledTime // Using logs TIME instead of schedules TIME
       },
       logs: {
         timeIn: todayLog?.TIME_IN ? {
@@ -726,7 +799,9 @@ app.get("/api/user-time-status/:username", async (req, res) => {
       currentTime: currentTime,
       hasTimeInToday: !!todayLog?.TIME_IN,
       hasTimeOutToday: !!todayLog?.TIME_OUT,
-      hasValidSchedule: hasValidSchedule // NEW: indicates if schedule is set
+      hasValidTime: !!schedule.TIME, // Check if schedule has valid time
+      mostRecentLogTime: todayLog?.TIME_OUT || todayLog?.TIME_IN || null, // From logs
+      calculatedStatus: calculatedStatus // Hardcoded based on TIME_IN/TIME_OUT
     });
   } catch (error) {
     console.error("❌ Error in user-time-status:", error);
@@ -735,8 +810,7 @@ app.get("/api/user-time-status/:username", async (req, res) => {
 });
 
 
-
-// UPDATED TIME-RECORD API - Add schedule validation
+// Also modify the endpoint to not update schedule STATUS:
 app.post("/api/time-record", async (req, res) => {
   const { user, action } = req.body;
   
@@ -754,7 +828,7 @@ app.post("/api/time-record", async (req, res) => {
     });
   }
 
-  // NEW: Check if user has a valid schedule for TIME-IN
+  // Check if user has a valid schedule for TIME-IN
   if (action === 'TIME-IN') {
     try {
       const schedule = await new Promise((resolve, reject) => {
@@ -783,8 +857,12 @@ app.post("/api/time-record", async (req, res) => {
   const currentTime = getGMT8Time();
   
   try {
-    // Rest of the existing time-record logic...
     const today = currentTime.slice(0, 10);
+    
+    // Determine the new status and action based on the time record action
+    const newStatus = action === 'TIME-IN' ? 'On Duty' : 'Off Duty';
+    const logAction = action === 'TIME-IN' ? 'On Duty' : 'COMPLETED'; // Set logs ACTION to COMPLETED for TIME-OUT
+    
     const existingLog = await new Promise((resolve, reject) => {
       const sql = "SELECT * FROM logs WHERE USER = ? AND DATE(TIME) = ? LIMIT 1";
       db.query(sql, [user, today], (err, results) => {
@@ -794,16 +872,17 @@ app.post("/api/time-record", async (req, res) => {
     });
 
     if (existingLog) {
+      // Update existing log with ACTION matching the new status
       const updateSql = `
         UPDATE logs 
-        SET ${action === 'TIME-IN' ? 'TIME_IN = ?' : 'TIME_OUT = ?'}
+        SET ${action === 'TIME-IN' ? 'TIME_IN = ?' : 'TIME_OUT = ?'}, ACTION = ?
         WHERE USER = ? AND DATE(TIME) = ?
       `;
       
       await new Promise((resolve, reject) => {
         db.query(
           updateSql, 
-          [currentTime, user, today], 
+          [currentTime, logAction, user, today], 
           (err, result) => {
             if (err) reject(err);
             else resolve(result);
@@ -811,15 +890,16 @@ app.post("/api/time-record", async (req, res) => {
         );
       });
     } else {
+      // Insert new log with ACTION matching the new status
       const insertSql = `
-        INSERT INTO logs (USER, TIME, ${action === 'TIME-IN' ? 'TIME_IN' : 'TIME_OUT'})
-        VALUES (?, ?, ?)
+        INSERT INTO logs (USER, TIME, ${action === 'TIME-IN' ? 'TIME_IN' : 'TIME_OUT'}, ACTION)
+        VALUES (?, ?, ?, ?)
       `;
       
       await new Promise((resolve, reject) => {
         db.query(
           insertSql, 
-          [user, currentTime, currentTime], 
+          [user, currentTime, currentTime, logAction], 
           (err, result) => {
             if (err) reject(err);
             else resolve(result);
@@ -828,20 +908,26 @@ app.post("/api/time-record", async (req, res) => {
       });
     }
 
-    const newStatus = action === 'TIME-IN' ? 'On Duty' : 'Off Duty';
-    await new Promise((resolve, reject) => {
-      const updateScheduleSql = "UPDATE schedules SET STATUS = ? WHERE USER = ?";
-      db.query(updateScheduleSql, [newStatus, user], (err) => {
-        if (err) reject(err);
-        else resolve(true);
+    // Update schedule STATUS to match the log ACTION
+    try {
+      await new Promise((resolve, reject) => {
+        const updateScheduleSql = "UPDATE schedules SET STATUS = ? WHERE USER = ?";
+        db.query(updateScheduleSql, [newStatus, user], (err, result) => {
+          if (err) reject(err);
+          else resolve(result);
+        });
       });
-    });
+    } catch (error) {
+      console.error("❌ Error updating schedule status:", error);
+      // Don't fail the entire request if schedule update fails
+    }
 
     res.json({ 
       success: true, 
       message: `${action} recorded successfully`,
       time: currentTime,
-      action: action
+      action: logAction, // Return the ACTION that matches STATUS
+      status: newStatus
     });
   } catch (error) {
     console.error("❌ Error in time-record:", error);
@@ -851,6 +937,9 @@ app.post("/api/time-record", async (req, res) => {
     });
   }
 });
+
+
+
 
 // Start server
 app.listen(3001, () => {

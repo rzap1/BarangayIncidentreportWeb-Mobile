@@ -67,7 +67,7 @@ const Notifications: React.FC = () => {
   // Fetch user logs from API
   const fetchLogs = async () => {
     try {
-      const response = await axios.get(`http://192.168.177.28:3001/api/logs/${username}`);
+      const response = await axios.get(`http://192.168.164.28:3001/api/logs/${username}`);
       setLogs(response.data || []);
       console.log(`Fetched ${response.data?.length || 0} logs for ${username}`);
     } catch (error) {

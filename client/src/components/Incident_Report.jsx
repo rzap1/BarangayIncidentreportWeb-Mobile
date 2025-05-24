@@ -31,7 +31,7 @@ function IncidentReport() {
 
   useEffect(() => {
     const fetchData = () => {
-      fetch("http://192.168.177.28:3001/api/incidents")
+      fetch("http://192.168.164.28:3001/api/incidents")
         .then(res => res.json())
         .then(data => setIncidents(data))
         .catch(err => {
@@ -55,7 +55,7 @@ function IncidentReport() {
     // Get username from localStorage or context
     const username = localStorage.getItem('username'); // Assuming you store username on login
     if (username) {
-      fetch(`http://192.168.177.28:3001/api/user/${username}`)
+      fetch(`http://192.168.164.28:3001/api/user/${username}`)
         .then(res => res.json())
         .then(data => setCurrentUser(data))
         .catch(err => console.error("Failed to fetch user info:", err));
@@ -66,7 +66,7 @@ function IncidentReport() {
     // Get today's date
     const today = new Date().toISOString().slice(0, 10);
     
-    fetch("http://192.168.177.28:3001/api/logs")
+    fetch("http://192.168.164.28:3001/api/logs")
       .then(res => res.json())
       .then(data => {
         // Filter logs for today that have TIME_IN but no TIME_OUT
@@ -137,7 +137,7 @@ function IncidentReport() {
     setIsUpdating(true);
     
     // Update incident status to "In Progress" and assign tanod
-    fetch(`http://192.168.177.28:3001/api/incidents/${selectedIncident.id}/status`, {
+    fetch(`http://192.168.164.28:3001/api/incidents/${selectedIncident.id}/status`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -187,7 +187,7 @@ function IncidentReport() {
     
     setIsUpdating(true);
     
-    fetch(`http://192.168.177.28:3001/api/incidents/${selectedIncident.id}/status`, {
+    fetch(`http://192.168.164.28:3001/api/incidents/${selectedIncident.id}/status`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -319,7 +319,7 @@ function IncidentReport() {
                     <td className="incident-cell">
                       <div className="incident-icon">
                         <img
-                          src={`http://192.168.177.28:3001/uploads/${item.image}`}
+                          src={`http://192.168.164.28:3001/uploads/${item.image}`}
                           alt="Incident"
                           className="small-avatar"
                         />
@@ -371,7 +371,7 @@ function IncidentReport() {
                   <label>Incident Photo</label>
                   <div className="modal-image-container">
                     <img 
-                      src={`http://192.168.177.28:3001/uploads/${selectedIncident.image}`} 
+                      src={`http://192.168.164.28:3001/uploads/${selectedIncident.image}`} 
                       alt="Incident" 
                       className="modal-image" 
                     />

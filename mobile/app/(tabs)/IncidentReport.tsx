@@ -186,7 +186,7 @@ const IncidentReport: React.FC = () => {
         } as any);
       }
 
-      const response = await fetch("http://192.168.177.28:3001/api/incidents", {
+      const response = await fetch("http://192.168.164.28:3001/api/incidents", {
         method: "POST",
         body: formData,
       });

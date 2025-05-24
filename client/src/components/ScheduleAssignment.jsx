@@ -13,11 +13,11 @@ const ScheduleAssignment = () => {
   const [syncMessage, setSyncMessage] = useState('');
 
   // Base URL for your backend
-  const BASE_URL = 'http://192.168.177.28:3001';
+  const BASE_URL = 'http://192.168.164.28:3001';
 
   // Function to get image URL
   const getImageUrl = (imageName) => {
-    if (!imageName) return null; // Return null instead of placeholder
+    if (!imageName) return null;
     return `${BASE_URL}/uploads/${imageName}`;
   };
 
@@ -46,31 +46,50 @@ const ScheduleAssignment = () => {
     );
   };
 
-  // Function to insert log entry
-  const insertLogEntry = async (user, time, location, action = 'Status Updated', details = '') => {
+  // Function to get the most recent log time for display
+  const getMostRecentLogTime = async (username) => {
     try {
-      const response = await axios.post(`${BASE_URL}/api/logs`, {
-        user,
-        time,
-        location,
-        action,
-        details
-      });
-      
-      if (response.data.success) {
-        console.log('Log entry created successfully:', response.data);
-        return response.data;
-      } else {
-        console.error('Failed to create log entry:', response.data.message);
-        return { success: false, message: response.data.message };
+      const response = await axios.get(`${BASE_URL}/api/logs/${username}`);
+      if (response.data && response.data.length > 0) {
+        // Get today's date
+        const today = new Date().toISOString().slice(0, 10);
+        
+        // Find today's log first
+        const todayLog = response.data.find(log => {
+          const logDate = new Date(log.TIME).toISOString().slice(0, 10);
+          return logDate === today;
+        });
+        
+        if (todayLog) {
+          // Return TIME_OUT if available, otherwise TIME_IN
+          return todayLog.TIME_OUT || todayLog.TIME_IN || todayLog.TIME;
+        }
+        
+        // If no today's log, get the most recent log
+        return response.data[0].TIME_OUT || response.data[0].TIME_IN || response.data[0].TIME;
       }
-    } catch (err) {
-      console.error('Error creating log entry:', err);
-      return { success: false, message: err.message };
+      return null;
+    } catch (error) {
+      console.error(`Error fetching logs for ${username}:`, error);
+      return null;
     }
   };
 
-  // Function to load schedules from the database
+  // Function to calculate status based on logs
+  const calculateStatusFromLogs = async (username) => {
+    try {
+      const response = await axios.get(`${BASE_URL}/api/user-time-status/${username}`);
+      if (response.data && response.data.success) {
+        return response.data.calculatedStatus || 'Off Duty';
+      }
+      return 'Off Duty';
+    } catch (error) {
+      console.error(`Error calculating status for ${username}:`, error);
+      return 'Off Duty';
+    }
+  };
+
+  // Function to load schedules from the database with calculated status and log times
   const loadSchedules = async () => {
     try {
       setIsLoading(true);
@@ -79,7 +98,22 @@ const ScheduleAssignment = () => {
       
       if (scheduleResponse.data && Array.isArray(scheduleResponse.data)) {
         console.log("Loaded schedules:", scheduleResponse.data);
-        setPersonnel(scheduleResponse.data);
+        
+        // Calculate status and get log times for each personnel
+        const personnelWithCalculatedData = await Promise.all(
+          scheduleResponse.data.map(async (person) => {
+            const calculatedStatus = await calculateStatusFromLogs(person.USER);
+            const mostRecentLogTime = await getMostRecentLogTime(person.USER);
+            
+            return {
+              ...person,
+              CALCULATED_STATUS: calculatedStatus,
+              LOG_TIME: mostRecentLogTime // Time from logs to display in SCHEDULE TIME column
+            };
+          })
+        );
+        
+        setPersonnel(personnelWithCalculatedData);
       } else {
         console.log("No schedules found or invalid data format");
         setPersonnel([]);
@@ -103,15 +137,6 @@ const ScheduleAssignment = () => {
       
       if (response.data.success) {
         setSyncMessage(`Success! ${response.data.message}`);
-        
-        // Log the sync action
-        await insertLogEntry(
-          'Admin', 
-          new Date().toISOString(), 
-          'System', 
-          'Tanod Sync', 
-          `Synced ${response.data.count} tanods from users table`
-        );
         
         // After successful sync, reload the schedules
         await loadSchedules();
@@ -138,12 +163,19 @@ const ScheduleAssignment = () => {
   useEffect(() => {
     // Initial load of schedules
     loadSchedules();
+    
+    // Set up interval to refresh data every 30 seconds
+    const interval = setInterval(() => {
+      loadSchedules();
+    }, 30000);
+    
+    return () => clearInterval(interval);
   }, []);
 
   const handleClick = (person) => {
     setSelectedPerson(person);
     setFormData({
-      status: person.STATUS || '',
+      status: person.CALCULATED_STATUS || '',
       location: person.LOCATION || '',
       time: person.TIME || ''
     });
@@ -155,44 +187,18 @@ const ScheduleAssignment = () => {
     setShowModal(false);
   };
 
-  // Updated handleSave function with improved logging
+  // Updated handleSave function
   const handleSave = async () => {
     try {
-      // Update the schedule first
+      // Update the schedule
       const response = await axios.put(`${BASE_URL}/api/schedules/${selectedPerson.ID}`, {
-        status: formData.status,
         location: formData.location,
         time: formData.time
       });
       
       if (response.data.success) {
-        // Update the personnel state with the updated data
-        setPersonnel(prev =>
-          prev.map(p =>
-            p.ID === selectedPerson.ID ? { ...p, STATUS: formData.status, LOCATION: formData.location, TIME: formData.time } : p
-          )
-        );
-        
-        // Create log entry with USER, LOCATION, and TIME
-        const logTime = formData.time || new Date().toISOString();
-        const logLocation = formData.location || 'Not specified';
-        const logAction = ` ${formData.status || 'Status Updated'}`;
-        const logDetails = `Status: ${formData.status || 'Not specified'}, Location: ${logLocation}, Time: ${new Date(logTime).toLocaleString()}`;
-        
-        const logResult = await insertLogEntry(
-          selectedPerson.USER,     // USER
-          logTime,                 // TIME
-          logLocation,             // LOCATION
-          logAction,               // ACTION
-          logDetails               // DETAILS
-        );
-        
-        if (logResult.success) {
-          console.log('Schedule updated and logged successfully');
-        } else {
-          console.warn('Schedule updated but logging failed:', logResult.message);
-        }
-        
+        // Reload schedules to get updated data
+        await loadSchedules();
         closeModal();
       } else {
         setError('Failed to update schedule. Please try again.');
@@ -214,23 +220,9 @@ const ScheduleAssignment = () => {
 
   const handleDelete = async (id) => {
     try {
-      // Get the person details for logging before deletion
-      const personToDelete = personnel.find(p => p.ID === id);
-      
       const response = await axios.delete(`${BASE_URL}/api/schedules/${id}`);
       
       if (response.data.success) {
-        // Log the deletion
-        if (personToDelete) {
-          await insertLogEntry(
-            personToDelete.USER,
-            new Date().toISOString(),
-            personToDelete.LOCATION || 'Not specified',
-            'Schedule Deleted',
-            `Schedule entry removed for ${personToDelete.USER}`
-          );
-        }
-        
         // Remove the deleted person from the state
         setPersonnel(prev => prev.filter(p => p.ID !== id));
       } else {
@@ -239,6 +231,16 @@ const ScheduleAssignment = () => {
     } catch (err) {
       console.error('Error deleting schedule entry:', err);
       setError('An error occurred while deleting the schedule entry.');
+    }
+  };
+
+  // Helper function to format datetime for display
+  const formatDateTime = (dateTimeString) => {
+    if (!dateTimeString) return "Not set";
+    try {
+      return new Date(dateTimeString).toLocaleString();
+    } catch (error) {
+      return "Invalid date";
     }
   };
 
@@ -295,7 +297,7 @@ const ScheduleAssignment = () => {
           <p className="text-gray-600 mt-1">Manage tanod schedules, assign tanods, and track assignment status</p>
         </div>
 
-        {/* Modal placement moved here */}
+        {/* Modal */}
         {showModal && selectedPerson && (
           <div className="mb-6 bg-white shadow overflow-hidden sm:rounded-lg">
             <div className="bg-white px-6 pt-6 pb-4">
@@ -312,22 +314,6 @@ const ScheduleAssignment = () => {
                 </h3>
                 <div className="mt-4 space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 text-left">Status:</label>
-                    <select
-                      name="status"
-                      className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-                      value={formData.status}
-                      onChange={handleChange}
-                    >
-                      <option value="">Select status</option>
-                      <option value="Available">Available</option>
-                      <option value="On its way to Incident">On way to incident</option>
-                      <option value="On duty">On duty</option>
-                      <option value="Off duty">Off duty</option>
-                    </select>
-                  </div>
-                  
-                  <div>
                     <label className="block text-sm font-medium text-gray-700 text-left">Location:</label>
                     <input
                       type="text"
@@ -340,7 +326,7 @@ const ScheduleAssignment = () => {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 text-left">Time:</label>
+                    <label className="block text-sm font-medium text-gray-700 text-left">Schedule Time:</label>
                     <input
                       type="datetime-local"
                       name="time"
@@ -446,7 +432,7 @@ const ScheduleAssignment = () => {
                       Location
                     </th>
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      ASSIGNMENT Time
+                      Schedule Time
                     </th>
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
                       Actions
@@ -476,19 +462,18 @@ const ScheduleAssignment = () => {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                            ${person.STATUS && person.STATUS.includes('Available') ? 'bg-green-100 text-green-800' : 
-                              person.STATUS && person.STATUS.includes('way') ? 'bg-yellow-100 text-yellow-800' : 
-                              person.STATUS && person.STATUS.includes('On duty') ? 'bg-blue-100 text-blue-800' : 
-                              person.STATUS && person.STATUS.includes('Off duty') ? 'bg-gray-100 text-gray-800' :
+                            ${person.CALCULATED_STATUS === 'On Duty' ? 'bg-green-100 text-green-800' : 
+                              person.CALCULATED_STATUS === 'Off Duty' ? 'bg-gray-100 text-gray-800' :
                               'bg-gray-100 text-gray-800'}`}>
-                            {person.STATUS || "Not set"}
+                            {person.CALCULATED_STATUS || "Off Duty"}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {person.LOCATION || "Not assigned"}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {person.TIME ? new Date(person.TIME).toLocaleString() : "Not set"}
+                          {/* Display LOG_TIME (from logs) instead of TIME (from schedules) */}
+                          {person.LOG_TIME ? formatDateTime(person.LOG_TIME) : "No recent activity"}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                           <button 

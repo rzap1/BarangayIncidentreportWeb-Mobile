@@ -21,18 +21,15 @@ interface UserTimeStatus {
     id: number;
     user: string;
     status: string;
-    location: string | null;
     scheduledTime: string | null;
   };
   logs: {
     timeIn: {
       time: string;
-      location: string;
       action: string;
     } | null;
     timeOut: {
       time: string;
-      location: string;
       action: string;
     } | null;
   };
@@ -50,6 +47,7 @@ const TimeIn: React.FC = () => {
   const [userStatus, setUserStatus] = useState<UserTimeStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+
   // Update current time every second
   useEffect(() => {
     const updateTime = () => {
@@ -77,7 +75,7 @@ const TimeIn: React.FC = () => {
   const fetchUserTimeStatus = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`http://192.168.177.28:3001/api/user-time-status/${username}`);
+      const response = await fetch(`http://192.168.164.28:3001/api/user-time-status/${username}`);
       const data = await response.json();
       
       if (response.ok) {
@@ -120,11 +118,9 @@ const TimeIn: React.FC = () => {
       hour12: true
     });
 
-    const locationText = userStatus?.schedule.location || 'Unknown Location';
-
     Alert.alert(
       "Confirm Time Record",
-      `Are you sure you want to record ${action}?\n\nTime: ${currentTimeFormatted}\n`,
+      `Are you sure you want to record ${action}?\n\nTime: ${currentTimeFormatted}`,
       [
         {
           text: "Cancel",
@@ -136,15 +132,14 @@ const TimeIn: React.FC = () => {
             try {
               setSubmitting(true);
               
-              const response = await fetch('http://192.168.177.28:3001/api/time-record', {
+              const response = await fetch('http://192.168.164.28:3001/api/time-record', {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
                   user: username,
-                  action: action,
-                  location: userStatus?.schedule.location || 'Unknown Location'
+                  action: action
                 }),
               });
 
@@ -477,24 +472,6 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: "bold",
     color: "#007bff",
-  },
-  locationInput: {
-    backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    paddingHorizontal: 15,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: "#333",
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
   },
   logSection: {
     backgroundColor: "#fff",

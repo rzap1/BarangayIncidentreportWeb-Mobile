@@ -39,7 +39,7 @@ function App() {
         <header className="header">
           <div className="left">
             <img src="logo.png" alt="Logo" className="logo" />
-            <h1>PatrolTrack</h1>
+            <h1>PatrolNet</h1>
           </div>
           <div className="right">
             {!isLoggedIn && (

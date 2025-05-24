@@ -60,7 +60,7 @@ const Profile: React.FC = () => {
   const fetchUserData = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(`http://192.168.177.28:3001/api/user/${username}`);
+      const response = await axios.get(`http://192.168.164.28:3001/api/user/${username}`);
       
       if (response.data) {
         setUserData(response.data);
@@ -69,7 +69,7 @@ const Profile: React.FC = () => {
         setFormName(response.data.NAME || "");
         setFormEmail(response.data.EMAIL || "");
         setFormAddress(response.data.ADDRESS || "");
-        setImage(response.data.IMAGE ? `http://192.168.177.28:3001/uploads/${response.data.IMAGE}` : null);
+        setImage(response.data.IMAGE ? `http://192.168.164.28:3001/uploads/${response.data.IMAGE}` : null);
       }
     } catch (error) {
       console.error("Error fetching user data:", error);
@@ -122,7 +122,7 @@ const Profile: React.FC = () => {
       
       // Update user
       const response = await axios.put(
-        `http://192.168.177.28:3001/api/users/${userData?.ID}`,
+        `http://192.168.164.28:3001/api/users/${userData?.ID}`,
         formData,
         {
           headers: { "Content-Type": "multipart/form-data" },

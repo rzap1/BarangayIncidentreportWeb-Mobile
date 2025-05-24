@@ -9,7 +9,7 @@ const PatrolLogs = () => {
   const [error, setError] = useState(null);
 
   // Base URL for your backend
-  const BASE_URL = 'http://192.168.177.28:3001';
+  const BASE_URL = 'http://192.168.164.28:3001';
 
   // Function to load logs from the database
   const loadLogs = async () => {
@@ -200,7 +200,7 @@ const PatrolLogs = () => {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           <div className="flex items-center">
-                            <img className="h-8 w-8 rounded-full mr-2" src="/api/placeholder/150/150" alt="Profile" />
+                            
                             {log.tanod}
                           </div>
                         </td>

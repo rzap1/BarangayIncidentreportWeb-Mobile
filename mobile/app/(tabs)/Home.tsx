@@ -1,9 +1,12 @@
 // Home.tsx
 import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Platform } from "react-native";
 import { useRoute, RouteProp, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import axios from "axios";
+// Import Call functionality
+import { Linking } from "react-native";
+
 import NavBar from "./NavBar";
 import type { RootStackParamList } from "./app"; // ✅ Use shared type from App.tsx
 
@@ -28,6 +31,12 @@ const Home: React.FC = () => {
   const [userData, setUserData] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
   
+  // Emergency contacts - you can make this configurable or fetch from backend
+  const emergencyContacts = {
+    barangay: "+639123456789", // Replace with actual barangay number
+
+  };
+  
   // Fetch user data on component mount
   useEffect(() => {
     if (username) {
@@ -37,16 +46,51 @@ const Home: React.FC = () => {
   
   const fetchUserData = async () => {
     try {
-      const response = await axios.get(`http://192.168.219.28:3001/api/user/${username}`);
+      const response = await axios.get(`http://192.168.164.28:3001/api/user/${username}`);
       
       if (response.data) {
         setUserData(response.data);
       }
     } catch (error) {
-      console.error("Error fetching user data:", error);
+      console.error("Error fetching user data:", error);     
     } finally {
       setLoading(false);
     }
+  };
+
+  // Function to make emergency call
+  const makeEmergencyCall = () => {
+    const phoneNumber = emergencyContacts.barangay;
+    const url = `tel:${phoneNumber}`;
+    
+    // Direct call without checking canOpenURL (for better compatibility)
+    Linking.openURL(url).catch((err) => {
+      console.error('Call Error:', err);
+      // Fallback: try alternative formats
+      const alternativeUrl = `telprompt:${phoneNumber}`;
+      Linking.openURL(alternativeUrl).catch((fallbackErr) => {
+        console.error('Fallback Call Error:', fallbackErr);
+        Alert.alert("Error", "Unable to open phone dialer. Please call " + phoneNumber + " manually.");
+      });
+    });
+  };
+
+  // Alternative direct call function (bypasses confirmation)
+  const makeDirectCall = (phoneNumber: string) => {
+    const url = `tel:${phoneNumber}`;
+    
+    Linking.canOpenURL(url)
+      .then((supported) => {
+        if (supported) {
+          return Linking.openURL(url);
+        } else {
+          Alert.alert("Error", "Phone calls are not supported on this device");
+        }
+      })
+      .catch((err) => {
+        console.error('Call Error:', err);
+        Alert.alert("Error", "Failed to make call");
+      });
   };
   
   return (
@@ -62,12 +106,21 @@ const Home: React.FC = () => {
         <Text style={styles.subText}>ABOUT SA APP</Text>
         
         <TouchableOpacity
-            style={styles.reportButton}
-            onPress={() => navigation.navigate("IncidentReport", { username })}
-          >
-            <Text style={styles.reportButtonText}>REPORT INCIDENT</Text>
-          </TouchableOpacity>
+          style={styles.reportButton}
+          onPress={() => navigation.navigate("IncidentReport", { username })}
+        >
+          <Text style={styles.reportButtonText}>REPORT INCIDENT</Text>
+        </TouchableOpacity>
 
+        {/* Updated Emergency Call Button */}
+        <TouchableOpacity
+          style={styles.emergencyButton}
+          onPress={makeEmergencyCall}
+        >
+          <Text style={styles.emergencyButtonText}>📞 EMERGENCY CALL</Text>
+        </TouchableOpacity>
+
+        <Text style={styles.offlineText}>Works with cellular network</Text>
       </View>
     </View>
   );
@@ -105,6 +158,33 @@ const styles = StyleSheet.create({
   reportButtonText: {
     fontWeight: "bold",
     color: "#000",
+  },
+  // Updated styles for emergency call button
+  emergencyButton: {
+    marginTop: 15,
+    backgroundColor: "#ff4444", // Retained red color
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 20,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  emergencyButtonText: {
+    fontWeight: "bold",
+    color: "#fff",
+    fontSize: 14,
+  },
+  offlineText: {
+    fontSize: 10,
+    color: "#666",
+    marginTop: 5,
+    fontStyle: "italic",
   },
 });
 

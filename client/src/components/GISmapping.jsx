@@ -46,7 +46,7 @@ function GISMapping() {
   const fetchIncidents = async () => {
     try {
       setLoading(true);
-      const response = await fetch('http://192.168.177.28:3001/api/incidents');
+      const response = await fetch('http://192.168.164.28:3001/api/incidents');
       
       if (!response.ok) {
         throw new Error('Failed to fetch incidents');
@@ -238,7 +238,7 @@ function GISMapping() {
                         {incident.image && (
                           <div className="popup-image">
                             <img 
-                              src={`http://192.168.177.28:3001/uploads/${incident.image}`}
+                              src={`http://192.168.164.28:3001/uploads/${incident.image}`}
                               alt="Incident"
                               style={{ maxWidth: '200px', maxHeight: '150px', objectFit: 'cover' }}
                             />
