@@ -186,7 +186,7 @@ const IncidentReport: React.FC = () => {
         } as any);
       }
 
-      const response = await fetch("http://192.168.164.28:3001/api/incidents", {
+      const response = await fetch("http://192.168.125.28:3001/api/incidents", {
         method: "POST",
         body: formData,
       });
@@ -221,40 +221,43 @@ const IncidentReport: React.FC = () => {
         >
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Report Incident</Text>
+        <Text style={styles.headerTitle}>PatrolNet - Report Incident</Text>
         <View style={styles.headerPlaceholder} />
       </View>
 
       <ScrollView contentContainerStyle={styles.body}>
-        <Text style={styles.reportTitle}>OH NO!</Text>
-        <Text style={styles.reportTitle}>HURRY UP AND REPORT THE INCIDENT</Text>
+        <Text style={styles.reportTitle}>Report an Incident</Text>
+        <Text style={styles.reportSubtitle}>Help us respond quickly to your concern</Text>
 
-        <Text style={styles.label}>{username}</Text>
+        <Text style={styles.label}>Reported by:</Text>
+        <Text style={styles.usernameDisplay}>{username}</Text>
+        
         <Text style={styles.label}>Type of incident:</Text>
         <TextInput
           style={styles.input}
           value={incidentType}
           onChangeText={setIncidentType}
           placeholder="Enter incident type"
+          placeholderTextColor="#999"
         />
 
         <Text style={styles.label}>Current Date & Time:</Text>
         <TextInput
-          style={[styles.input, { backgroundColor: "#e0e0e0" }]}
+          style={[styles.input, styles.readOnlyInput]}
           value={formattedDateTime}
           editable={false}
         />
 
         <Text style={styles.label}>Location Address:</Text>
         <TextInput
-          style={[styles.input, { backgroundColor: "#e0e0e0" }]}
+          style={[styles.input, styles.readOnlyInput]}
           value={address}
           editable={false}
         />
 
         <View style={styles.mapContainer}>
           {!locationLoaded ? (
-            <ActivityIndicator size="large" color="#999" />
+            <ActivityIndicator size="large" color="#4a90e2" />
           ) : (
             <MapView
               style={styles.map}
@@ -264,7 +267,7 @@ const IncidentReport: React.FC = () => {
             >
               {pinLocation && (
                 <Marker coordinate={pinLocation} title="Pinned Location">
-                  <Ionicons name="location-sharp" size={30} color="red" />
+                  <Ionicons name="location-sharp" size={30} color="#e74c3c" />
                 </Marker>
               )}
             </MapView>
@@ -276,7 +279,7 @@ const IncidentReport: React.FC = () => {
           onPress={handleUseCurrentLocation}
         >
           <Text style={styles.currentLocationText}>Use my current location</Text>
-          <Ionicons name="location-sharp" size={20} color="black" />
+          <Ionicons name="location-sharp" size={20} color="#4a90e2" />
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -286,14 +289,14 @@ const IncidentReport: React.FC = () => {
           <Feather
             name="camera"
             size={20}
-            color="black"
+            color="#4a90e2"
             style={{ marginRight: 10 }}
           />
           <Text style={styles.attachPhotoButtonText}>ATTACH PHOTO</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
-          <Text style={styles.submitButtonText}>SUBMIT</Text>
+          <Text style={styles.submitButtonText}>SUBMIT REPORT</Text>
         </TouchableOpacity>
 
         <View style={[styles.inputGroup, { display: "none" }]}>
@@ -323,95 +326,232 @@ const IncidentReport: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f0f0f0" },
-  // New custom header styles
+  container: { 
+    flex: 1, 
+    backgroundColor: "#f5f6fa" 
+  },
+  
+  // Professional header styles
   customHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 20,
     paddingTop: 60,
-    backgroundColor: "#555",
-    paddingBottom: 10,
+    backgroundColor: "#2c3e50",
+    paddingBottom: 15,
+    elevation: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
   },
   backButton: {
-    padding: 5,
+    padding: 8,
+    borderRadius: 20,
   },
   headerTitle: {
-    fontWeight: "bold",
+    fontWeight: "600",
     fontSize: 18,
     color: "#fff",
     flex: 1,
     textAlign: "center",
   },
   headerPlaceholder: {
-    width: 34, // Same width as back button to center the title
+    width: 40,
   },
-  body: { padding: 20, alignItems: "center" },
-  reportTitle: { fontSize: 16, fontWeight: "bold", marginBottom: 5 },
-  sadEmoji: { fontSize: 24, marginBottom: 15 },
-  label: { fontSize: 14, marginBottom: 5, alignSelf: "flex-start" },
+  
+  body: { 
+    padding: 20, 
+    backgroundColor: "#f5f6fa" 
+  },
+  
+  reportTitle: { 
+    fontSize: 24, 
+    fontWeight: "bold", 
+    marginBottom: 8,
+    color: "#2c3e50",
+    textAlign: "center"
+  },
+  
+  reportSubtitle: {
+    fontSize: 16,
+    color: "#7f8c8d",
+    textAlign: "center",
+    marginBottom: 30,
+    fontWeight: "400"
+  },
+  
+  label: { 
+    fontSize: 16, 
+    marginBottom: 8, 
+    fontWeight: "600",
+    color: "#2c3e50"
+  },
+  
+  usernameDisplay: {
+    fontSize: 16,
+    color: "#4a90e2",
+    backgroundColor: "#fff",
+    padding: 15,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#e1e8ed",
+    marginBottom: 20,
+    fontWeight: "500"
+  },
+  
   input: {
     width: "100%",
     backgroundColor: "#fff",
-    borderColor: "#ccc",
+    borderColor: "#e1e8ed",
     borderWidth: 1,
-    borderRadius: 5,
-    padding: 10,
-    marginBottom: 15,
+    borderRadius: 8,
+    padding: 15,
+    marginBottom: 20,
+    fontSize: 16,
+    color: "#2c3e50",
+    elevation: 1,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
   },
+  
+  readOnlyInput: {
+    backgroundColor: "#f8f9fa",
+    color: "#6c757d"
+  },
+  
   mapContainer: {
     width: "100%",
-    height: 300,
-    borderRadius: 10,
+    height: 250,
+    borderRadius: 12,
     overflow: "hidden",
-    marginBottom: 15,
+    marginBottom: 20,
     justifyContent: "center",
     alignItems: "center",
+    elevation: 3,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
-  map: { ...StyleSheet.absoluteFillObject },
+  
+  map: { 
+    ...StyleSheet.absoluteFillObject 
+  },
+  
   currentLocationButton: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#e0e0e0",
-    paddingVertical: 10,
-    paddingHorizontal: 15,
-    borderRadius: 20,
-    marginBottom: 15,
+    justifyContent: "center",
+    backgroundColor: "#fff",
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: "#e1e8ed",
+    elevation: 1,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
   },
-  currentLocationText: { fontSize: 14, marginRight: 10 },
+  
+  currentLocationText: { 
+    fontSize: 16, 
+    marginRight: 10,
+    color: "#4a90e2",
+    fontWeight: "500"
+  },
+  
   attachPhotoButton: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#d9d9d9",
-    paddingVertical: 10,
+    justifyContent: "center",
+    backgroundColor: "#fff",
+    paddingVertical: 15,
     paddingHorizontal: 20,
-    borderRadius: 20,
-    marginBottom: 15,
+    borderRadius: 8,
+    marginBottom: 30,
+    borderWidth: 1,
+    borderColor: "#e1e8ed",
+    elevation: 1,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
   },
-  attachPhotoButtonText: { fontSize: 14, fontWeight: "bold" },
-  imageSection: { width: "100%", marginBottom: 20 },
+  
+  attachPhotoButtonText: { 
+    fontSize: 16, 
+    fontWeight: "600",
+    color: "#4a90e2"
+  },
+  
+  imageSection: { 
+    width: "100%", 
+    marginBottom: 20,
+    marginTop: 20
+  },
+  
   imageLabelRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: 5,
+    marginBottom: 10,
+    alignItems: "center"
   },
-  imageLabel: { fontSize: 14, fontWeight: "bold" },
+  
+  imageLabel: { 
+    fontSize: 16, 
+    fontWeight: "600",
+    color: "#2c3e50"
+  },
+  
   removePhotoText: {
-    color: "red",
-    textDecorationLine: "underline",
-    fontSize: 13,
+    color: "#e74c3c",
+    fontSize: 14,
+    fontWeight: "500"
   },
-  imagePreview: { width: "100%", height: 200, borderRadius: 10 },
+  
+  imagePreview: { 
+    width: "100%", 
+    height: 200, 
+    borderRadius: 8,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  
   submitButton: {
-    backgroundColor: "#a9a9a9",
-    paddingVertical: 12,
+    backgroundColor: "#27ae60",
+    paddingVertical: 18,
     paddingHorizontal: 40,
-    borderRadius: 25,
+    borderRadius: 8,
     marginBottom: 30,
+    elevation: 3,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
   },
-  submitButtonText: { color: "#fff", fontWeight: "bold", fontSize: 16 },
-  inputGroup: { width: "100%", marginBottom: 15 },
+  
+  submitButtonText: { 
+    color: "#fff", 
+    fontWeight: "bold", 
+    fontSize: 18,
+    textAlign: "center"
+  },
+  
+  inputGroup: { 
+    width: "100%", 
+    marginBottom: 15 
+  },
+  
   inputLabel: {
     fontSize: 12,
     fontWeight: "bold",

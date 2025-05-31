@@ -20,7 +20,7 @@ const Login = ({ setShowLogin, onLoginSuccess }) => {
     }
 
     try {
-      const res = await axios.post("http://192.168.164.28:3001/login", {
+      const res = await axios.post("http://192.168.125.28:3001/login", {
         username,
         password,
       });
@@ -28,6 +28,31 @@ const Login = ({ setShowLogin, onLoginSuccess }) => {
       setMessage(res.data.message);
 
       if (res.data.success) {
+        // Store user data in localStorage
+        localStorage.setItem('username', username);
+        
+        // If your backend returns additional user data, store it
+        if (res.data.user) {
+          localStorage.setItem('userRole', res.data.user.role || res.data.user.ROLE);
+          localStorage.setItem('userId', res.data.user.id || res.data.user.ID);
+          // Store the IMAGE if it's returned in login response
+          if (res.data.user.image || res.data.user.IMAGE) {
+            localStorage.setItem('userImage', res.data.user.image || res.data.user.IMAGE);
+          }
+        }
+        
+        // Store token if returned
+        if (res.data.token) {
+          localStorage.setItem('token', res.data.token);
+        }
+
+        console.log('Login successful, stored data:', {
+          username: localStorage.getItem('username'),
+          userRole: localStorage.getItem('userRole'),
+          userId: localStorage.getItem('userId'),
+          userImage: localStorage.getItem('userImage')
+        });
+
         // Trigger login success in App.js
         onLoginSuccess();
       }

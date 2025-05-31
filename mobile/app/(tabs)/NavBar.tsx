@@ -1,4 +1,4 @@
-// components/NavBar.tsx - Updated with removed sidebar items and navigation to notifications page
+// components/NavBar.tsx - Updated with incident assignment notifications
 import React, { useState, useRef, useEffect } from "react";
 import {
   View,
@@ -34,6 +34,16 @@ interface LogEntry {
   LOCATION?: string;
 }
 
+interface IncidentReport {
+  id: number;
+  type: string;
+  reported_by: string;
+  location: string;
+  status: string;
+  assigned: string;
+  created_at: string;
+}
+
 const NavBar: React.FC<NavBarProps> = ({ username, userImage }) => {
   const [sidebarVisible, setSidebarVisible] = useState(false);
   const [userMenuVisible, setUserMenuVisible] = useState(false);
@@ -43,6 +53,9 @@ const NavBar: React.FC<NavBarProps> = ({ username, userImage }) => {
   const [isInitialized, setIsInitialized] = useState(false);
   const sidebarAnim = useRef(new Animated.Value(-screenWidth * 0.5)).current;
 
+  const [lastIncidentId, setLastIncidentId] = useState<number | null>(null);
+  const [incidentNotifications, setIncidentNotifications] = useState<IncidentReport[]>([]);
+  const [isIncidentInitialized, setIsIncidentInitialized] = useState(false);
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   // Fetch user logs and check for new notifications
@@ -50,7 +63,7 @@ const NavBar: React.FC<NavBarProps> = ({ username, userImage }) => {
     if (!username) return;
     
     try {
-      const response = await axios.get(`http://192.168.164.28:3001/api/logs/${username}`);
+      const response = await axios.get(`http://192.168.125.28:3001/api/logs/${username}`);
       const logs = response.data;
       
       console.log('Fetched logs for user:', username, 'Count:', logs.length);
@@ -78,7 +91,7 @@ const NavBar: React.FC<NavBarProps> = ({ username, userImage }) => {
           // Show alert for new notification
           const notificationMessage = getLogDisplayText(latestLog);
           Alert.alert(
-            "New Activity Logged",
+            "New Schedule Logged",
             notificationMessage,
             [
               { text: "View All", onPress: () => handleNotificationPress() },
@@ -93,6 +106,64 @@ const NavBar: React.FC<NavBarProps> = ({ username, userImage }) => {
       console.error("Error fetching user logs:", error);
       // Don't show error alerts for network issues during background polling
     }
+  };
+
+  // Fetch assigned incidents and check for new assignments
+  const fetchAssignedIncidents = async () => {
+    if (!username) return;
+    
+    try {
+      const response = await axios.get(`http://192.168.125.28:3001/api/incidents/assigned/${username}`);
+      const incidents = response.data;
+      
+      console.log('Fetched assigned incidents for user:', username, 'Count:', incidents.length);
+      
+      if (incidents && incidents.length > 0) {
+        const latestIncident = incidents[0]; // Most recent incident (ordered by created_at DESC)
+        
+        console.log('Latest incident ID:', latestIncident.id, 'Last known incident ID:', lastIncidentId);
+        
+        // If this is the first time loading
+        if (!isIncidentInitialized) {
+          setLastIncidentId(latestIncident.id);
+          setIncidentNotifications(incidents.slice(0, 5)); // Show last 5 incidents
+          setIsIncidentInitialized(true);
+          console.log('Initialized with latest incident ID:', latestIncident.id);
+        } else if (latestIncident.id > (lastIncidentId || 0)) {
+          // New incident assignment detected - show notification
+          const newIncidentsCount = incidents.filter((incident: IncidentReport) => incident.id > (lastIncidentId || 0)).length;
+          setNotificationCount(prev => prev + newIncidentsCount);
+          setLastIncidentId(latestIncident.id);
+          setIncidentNotifications(incidents.slice(0, 5)); // Update with latest incidents
+          
+          console.log('New incident assignment detected! New incidents count:', newIncidentsCount);
+          
+          // Show alert for new incident assignment with your specified format
+          const incidentMessage = getIncidentDisplayText(latestIncident);
+          Alert.alert(
+            "You've Been Assigned",
+            incidentMessage,
+            [
+              { text: "View All", onPress: () => handleNotificationPress() },
+              { text: "Dismiss", style: "cancel" }
+            ]
+          );
+        }
+      } else {
+        console.log('No assigned incidents found for user:', username);
+      }
+    } catch (error) {
+      console.error("Error fetching assigned incidents:", error);
+      // Don't show error alerts for network issues during background polling
+    }
+  };
+
+  // Helper function to format incident display text with your specified format
+  const getIncidentDisplayText = (incident: IncidentReport) => {
+    return `Header Type: ${incident.type}
+Reported By: ${incident.reported_by}
+Location: ${incident.location}
+Status: ${incident.status}`;
   };
 
   // Helper function to format log display text
@@ -117,14 +188,79 @@ const NavBar: React.FC<NavBarProps> = ({ username, userImage }) => {
     return `${date} ${time}\n${action}${log.LOCATION ? `\nLocation: ${log.LOCATION}` : ''}`;
   };
 
-  // Poll for new logs every 15 seconds (reduced from 30 for more responsiveness)
+  // Function to handle incident resolution
+  const handleResolveIncident = async (incidentId: number) => {
+    try {
+      const response = await axios.put(`http://192.168.125.28:3001/api/incidents/${incidentId}/resolve`, {
+        resolved_by: username
+      });
+
+      if (response.data.success) {
+        Alert.alert(
+          "Success",
+          "Incident has been marked as resolved.",
+          [{ text: "OK" }]
+        );
+        
+        // Refresh incident notifications to remove resolved incident
+        fetchAssignedIncidents();
+      } else {
+        Alert.alert(
+          "Error",
+          "Failed to resolve incident. Please try again.",
+          [{ text: "OK" }]
+        );
+      }
+    } catch (error) {
+      console.error("Error resolving incident:", error);
+      Alert.alert(
+        "Error",
+        "Network error. Please check your connection and try again.",
+        [{ text: "OK" }]
+      );
+    }
+  };
+
+  // Function to show incident details with resolve option
+  const showIncidentDetails = (incident: IncidentReport) => {
+    const incidentMessage = getIncidentDisplayText(incident);
+    
+    Alert.alert(
+      "Incident Details",
+      incidentMessage,
+      [
+        {
+          text: "Mark as Resolved",
+          onPress: () => {
+            Alert.alert(
+              "Confirm Resolution",
+              "Are you sure you want to mark this incident as resolved?",
+              [
+                { text: "Cancel", style: "cancel" },
+                { 
+                  text: "Confirm", 
+                  onPress: () => handleResolveIncident(incident.id),
+                  style: "destructive"
+                }
+              ]
+            );
+          }
+        },
+        { text: "Close", style: "cancel" }
+      ]
+    );
+  };
+
+  // Polling effect for both logs and incidents
   useEffect(() => {
     if (username) {
       console.log('Setting up polling for user:', username);
-      fetchUserLogs(); // Initial fetch
+      fetchUserLogs(); // Initial fetch for logs
+      fetchAssignedIncidents(); // Initial fetch for incidents
       
       const interval = setInterval(() => {
         fetchUserLogs();
+        fetchAssignedIncidents(); // Poll for incident assignments
       }, 15000); // Check every 15 seconds
       
       return () => {
@@ -132,7 +268,7 @@ const NavBar: React.FC<NavBarProps> = ({ username, userImage }) => {
         clearInterval(interval);
       };
     }
-  }, [username, lastLogId, isInitialized]);
+  }, [username, lastLogId, isInitialized, lastIncidentId, isIncidentInitialized]);
 
   useEffect(() => {
     Animated.timing(sidebarAnim, {
@@ -142,12 +278,17 @@ const NavBar: React.FC<NavBarProps> = ({ username, userImage }) => {
     }).start();
   }, [sidebarVisible]);
 
+  // Handle notification press to navigate to notifications page
   const handleNotificationPress = () => {
     // Reset notification count when opened
     setNotificationCount(0);
     
-    // Navigate to notifications page
-    navigation.navigate("Notifications", { username: username ?? "" });
+    // Navigate to notifications page with both logs and incidents
+    navigation.navigate("Notifications", { 
+      username: username ?? "",
+      incidentNotifications: incidentNotifications,
+      onIncidentPress: showIncidentDetails // Pass the function to show incident details
+    });
   };
 
   const closeMenus = () => {
@@ -218,7 +359,7 @@ const NavBar: React.FC<NavBarProps> = ({ username, userImage }) => {
           >
             {userImage ? (
               <Image 
-                source={{ uri: `http://192.168.164.28:3001/uploads/${userImage}` }}
+                source={{ uri: `http://192.168.125.28:3001/uploads/${userImage}` }}
                 style={styles.profileImage}
                 onError={() => console.log("Error loading profile image")}
               />

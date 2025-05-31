@@ -89,7 +89,7 @@ const Register: React.FC = () => {
 
     setLoading(true);
     try {
-      const response = await axios.post("http://192.168.164.28:3001/register", {
+      const response = await axios.post("http://192.168.125.28:3001/register", {
         username,
         password,
         role,
@@ -116,119 +116,187 @@ const Register: React.FC = () => {
     }
   };
 
-  return (
-    <ScrollView contentContainerStyle={styles.scrollContainer}>
-      <View style={styles.container}>
-        <View style={styles.box}>
+return (
+  <ScrollView contentContainerStyle={styles.scrollContainer}>
+    <View style={styles.container}>
+      <View style={styles.box}>
+        {/* Header Section */}
+        <View style={styles.headerSection}>
           <View style={styles.logoCircle}>
-            <Text style={styles.logoText}>LOGO</Text>
+            <View style={styles.logoInner}>
+              <Text style={styles.logoText}>PN</Text>
+              <View style={styles.logoAccent} />
+            </View>
+            <View style={styles.logoGlow} />
           </View>
+          <Text style={styles.appTitle}>PatrolNet</Text>
+          <Text style={styles.appSubtitle}>Emergency Response System</Text>
+          <Text style={styles.welcomeText}>Account Registration</Text>
+          <Text style={styles.instructionText}>Complete your profile to join the network</Text>
+        </View>
 
+        {/* Form Section */}
+        <View style={styles.formContainer}>
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>FULL NAME</Text>
-            <TextInput
-              style={styles.inputBox}
-              value={name}
-              onChangeText={setName}
-              placeholder="Enter your full name"
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>USERNAME</Text>
-            <TextInput
-              style={styles.inputBox}
-              value={username}
-              onChangeText={setUsername}
-              placeholder="Choose a username"
-              autoCapitalize="none"
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>PASSWORD</Text>
-            <TextInput
-              style={styles.inputBox}
-              value={password}
-              onChangeText={setPassword}
-              placeholder="Create a password"
-              secureTextEntry
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>EMAIL</Text>
-            <TextInput
-              style={styles.inputBox}
-              value={email}
-              onChangeText={setEmail}
-              placeholder="Enter your email"
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>ADDRESS</Text>
-            <View style={styles.addressInputContainer}>
+            <View style={styles.inputWrapper}>
+              <Text style={styles.inputIcon}>👤</Text>
               <TextInput
-                style={styles.addressInput}
-                value={address}
-                onChangeText={setAddress}
-                placeholder="Enter your address or use current location"
-                multiline={true}
-                numberOfLines={2}
+                style={styles.inputBox}
+                value={name}
+                onChangeText={setName}
+                placeholder="Enter your complete legal name"
+                placeholderTextColor="#64748B"
               />
+            </View>
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>OFFICER ID / USERNAME</Text>
+            <View style={styles.inputWrapper}>
+              <Text style={styles.inputIcon}>🆔</Text>
+              <TextInput
+                style={styles.inputBox}
+                value={username}
+                onChangeText={setUsername}
+                placeholder="Choose unique identifier"
+                placeholderTextColor="#64748B"
+                autoCapitalize="none"
+              />
+            </View>
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>SECURE PASSWORD</Text>
+            <View style={styles.inputWrapper}>
+              <Text style={styles.inputIcon}>🔐</Text>
+              <TextInput
+                style={styles.inputBox}
+                value={password}
+                onChangeText={setPassword}
+                placeholder="Create strong password"
+                placeholderTextColor="#64748B"
+                secureTextEntry
+              />
+            </View>
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>CONTACT EMAIL</Text>
+            <View style={styles.inputWrapper}>
+              <Text style={styles.inputIcon}>📧</Text>
+              <TextInput
+                style={styles.inputBox}
+                value={email}
+                onChangeText={setEmail}
+                placeholder="official.email@domain.com"
+                placeholderTextColor="#64748B"
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+            </View>
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>SERVICE AREA / ADDRESS</Text>
+            <View style={styles.addressInputContainer}>
+              <View style={styles.addressWrapper}>
+                <Text style={styles.inputIcon}>📍</Text>
+                <TextInput
+                  style={styles.addressInput}
+                  value={address}
+                  onChangeText={setAddress}
+                  placeholder="Enter service area or use GPS location"
+                  placeholderTextColor="#64748B"
+                  multiline={true}
+                  numberOfLines={2}
+                />
+              </View>
               <TouchableOpacity
                 style={styles.locationButton}
                 onPress={handleUseCurrentLocation}
                 disabled={locationLoading}
               >
                 {locationLoading ? (
-                  <ActivityIndicator size="small" color="#666" />
+                  <ActivityIndicator size="small" color="#FFFFFF" />
                 ) : (
-                  <Ionicons name="location-sharp" size={20} color="#666" />
+                  <Text style={styles.locationIcon}>🎯</Text>
                 )}
               </TouchableOpacity>
             </View>
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Account Type</Text>
+            <Text style={styles.inputLabel}>ACCOUNT TYPE</Text>
             <View style={styles.pickerContainer}>
+              <Text style={styles.pickerIcon}>👮‍♂️</Text>
               <Picker
                 selectedValue={role}
                 onValueChange={(itemValue) => setRole(itemValue)}
                 style={styles.picker}
               >
-                <Picker.Item label="Resident" value="Resident" />
-                <Picker.Item label="Tanod" value="Tanod" />
+                <Picker.Item label="🏠 Community Resident" value="Resident" />
+                <Picker.Item label="🚔 Barangay Tanod Officer" value="Tanod" />
               </Picker>
             </View>
+            <Text style={styles.roleDescription}>
+              {role === 'Resident' 
+                ? 'Report incidents and receive safety alerts'
+                : 'Respond to emergencies and manage reports'
+              }
+            </Text>
           </View>
 
           <TouchableOpacity
-            style={styles.loginButton}
+            style={[styles.registerButton, loading && styles.registerButtonDisabled]}
             onPress={handleRegister}
             disabled={loading}
+            activeOpacity={0.8}
           >
             {loading ? (
-              <ActivityIndicator color="#000" />
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator color="#FFFFFF" size="small" />
+                <Text style={styles.loadingText}>CREATING ACCOUNT...</Text>
+              </View>
             ) : (
-              <Text style={styles.loginButtonText}>Create</Text>
+              <View style={styles.buttonContent}>
+                <Text style={styles.registerButtonText}>CREATE ACCOUNT</Text>
+                <Text style={styles.buttonArrow}>✓</Text>
+              </View>
             )}
           </TouchableOpacity>
 
-          <TouchableOpacity 
-            onPress={() => navigation.replace("Login")}
-            style={styles.backButton}
-          >
-            <Text>Back to Login</Text>
-          </TouchableOpacity>
+          {/* Security Notice */}
+          <View style={styles.securityNotice}>
+            <Text style={styles.securityIcon}>🛡️</Text>
+            <Text style={styles.securityText}>
+              Your information is encrypted and verified for security
+            </Text>
+          </View>
+
+          {/* Footer */}
+          <View style={styles.footerSection}>
+            <Text style={styles.footerText}>Already have credentials?</Text>
+            <TouchableOpacity 
+              onPress={() => navigation.replace("Login")}
+              style={styles.backButton}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.backButtonText}>← RETURN TO LOGIN</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Terms Notice */}
+        <View style={styles.termsNotice}>
+          <Text style={styles.termsText}>
+            By creating an account, you agree to PatrolNet's security protocols and community safety guidelines
+          </Text>
         </View>
       </View>
-    </ScrollView>
-  );
+    </View>
+  </ScrollView>
+);
 };
 
 const styles = StyleSheet.create({
@@ -237,99 +305,291 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: "#0F172A",
     justifyContent: "center",
     alignItems: "center",
-    paddingVertical: 30,
+    paddingVertical: 40,
+    paddingHorizontal: 20,
   },
   box: {
-    width: "80%",
+    width: "100%",
+    maxWidth: 400,
     alignItems: "center",
+  },
+  headerSection: {
+    alignItems: "center",
+    marginBottom: 32,
   },
   logoCircle: {
     width: 100,
     height: 100,
-    backgroundColor: "#d9d9d9",
     borderRadius: 50,
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 40,
+    marginBottom: 20,
+    position: "relative",
+  },
+  logoInner: {
+    width: 80,
+    height: 80,
+    backgroundColor: "#DC2626",
+    borderRadius: 40,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#FEF2F2",
+    shadowColor: "#DC2626",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.4,
+    shadowRadius: 15,
+    elevation: 8,
   },
   logoText: {
-    fontWeight: "bold",
-    color: "#000",
+    fontSize: 20,
+    fontWeight: "900",
+    color: "#FFFFFF",
+    letterSpacing: 1,
+  },
+  logoAccent: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    width: 8,
+    height: 8,
+    backgroundColor: "#FEF2F2",
+    borderRadius: 4,
+  },
+  logoGlow: {
+    position: "absolute",
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: "rgba(220, 38, 38, 0.15)",
+    top: 0,
+  },
+  appTitle: {
+    fontSize: 28,
+    fontWeight: "900",
+    color: "#FFFFFF",
+    letterSpacing: 1,
+    marginBottom: 4,
+  },
+  appSubtitle: {
+    fontSize: 12,
+    color: "#DC2626",
+    fontWeight: "600",
+    letterSpacing: 1.5,
+    marginBottom: 12,
+  },
+  welcomeText: {
+    fontSize: 18,
+    color: "#E2E8F0",
+    fontWeight: "600",
+    marginBottom: 4,
+  },
+  instructionText: {
+    fontSize: 14,
+    color: "#94A3B8",
+    textAlign: "center",
+    fontWeight: "400",
+  },
+  formContainer: {
+    width: "100%",
+    marginBottom: 24,
   },
   inputGroup: {
     width: "100%",
-    marginBottom: 15,
+    marginBottom: 18,
   },
   inputLabel: {
-    fontSize: 12,
-    fontWeight: "bold",
-    marginBottom: 5,
-    color: "#000",
+    fontSize: 11,
+    fontWeight: "700",
+    marginBottom: 6,
+    color: "#DC2626",
+    letterSpacing: 0.8,
+  },
+  inputWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#1E293B",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#334155",
+    paddingHorizontal: 14,
+    minHeight: 50,
+  },
+  inputIcon: {
+    fontSize: 16,
+    marginRight: 10,
+    color: "#64748B",
   },
   inputBox: {
-    width: "100%",
-    minHeight: 45,
-    backgroundColor: "#d9d9d9",
-    borderRadius: 25,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    fontWeight: "bold",
+    flex: 1,
+    fontSize: 15,
+    fontWeight: "500",
+    color: "#FFFFFF",
+    paddingVertical: 12,
   },
   addressInputContainer: {
-    flexDirection: "row",
-    alignItems: "stretch",
     width: "100%",
+  },
+  addressWrapper: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    backgroundColor: "#1E293B",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#334155",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 8,
   },
   addressInput: {
     flex: 1,
-    minHeight: 45,
-    backgroundColor: "#d9d9d9",
-    borderRadius: 25,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    fontWeight: "bold",
-    marginRight: 10,
+    fontSize: 15,
+    fontWeight: "500",
+    color: "#FFFFFF",
+    textAlignVertical: "top",
+    marginLeft: 10,
   },
   locationButton: {
-    width: 45,
-    height: 45,
-    backgroundColor: "#d9d9d9",
-    borderRadius: 22.5,
+    width: 50,
+    height: 40,
+    backgroundColor: "#DC2626",
+    borderRadius: 8,
     justifyContent: "center",
     alignItems: "center",
+    alignSelf: "flex-end",
+  },
+  locationIcon: {
+    fontSize: 16,
   },
   pickerContainer: {
-    width: "100%",
-    height: 45,
-    backgroundColor: "#d9d9d9",
-    borderRadius: 25,
-    justifyContent: "center",
-    paddingHorizontal: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#1E293B",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#334155",
+    paddingHorizontal: 14,
+    minHeight: 50,
+  },
+  pickerIcon: {
+    fontSize: 16,
+    marginRight: 10,
+    color: "#64748B",
   },
   picker: {
-    width: "100%",
-    color: "#000",
+    flex: 1,
+    color: "#FFFFFF",
+    fontSize: 15,
   },
-  loginButton: {
-    width: 120,
-    height: 40,
-    backgroundColor: "#d9d9d9",
-    borderRadius: 20,
+  roleDescription: {
+    fontSize: 12,
+    color: "#94A3B8",
+    fontStyle: "italic",
+    marginTop: 4,
+    paddingLeft: 4,
+  },
+  registerButton: {
+    width: "100%",
+    height: 54,
+    backgroundColor: "#DC2626",
+    borderRadius: 10,
     justifyContent: "center",
     alignItems: "center",
-    marginTop: 20,
+    marginTop: 8,
+    shadowColor: "#DC2626",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
   },
-  loginButtonText: {
+  registerButtonDisabled: {
+    opacity: 0.7,
+  },
+  buttonContent: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  registerButtonText: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#FFFFFF",
+    letterSpacing: 0.8,
+    marginRight: 8,
+  },
+  buttonArrow: {
+    fontSize: 16,
+    color: "#FFFFFF",
     fontWeight: "bold",
-    color: "#000",
+  },
+  loadingContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  loadingText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#FFFFFF",
+    marginLeft: 8,
+    letterSpacing: 0.5,
+  },
+  securityNotice: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(34, 197, 94, 0.1)",
+    borderWidth: 1,
+    borderColor: "#22C55E",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginTop: 16,
+  },
+  securityIcon: {
+    fontSize: 14,
+    marginRight: 8,
+  },
+  securityText: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: "500",
+    color: "#22C55E",
+    lineHeight: 16,
+  },
+  footerSection: {
+    alignItems: "center",
+    marginTop: 24,
+  },
+  footerText: {
+    fontSize: 13,
+    color: "#64748B",
+    marginBottom: 8,
   },
   backButton: {
-    marginTop: 15,
-    padding: 10,
-  }
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+  },
+  backButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#DC2626",
+    letterSpacing: 0.5,
+  },
+  termsNotice: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: "rgba(30, 41, 59, 0.5)",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#334155",
+  },
+  termsText: {
+    fontSize: 11,
+    color: "#94A3B8",
+    textAlign: "center",
+    lineHeight: 16,
+  },
 });
 
 export default Register;

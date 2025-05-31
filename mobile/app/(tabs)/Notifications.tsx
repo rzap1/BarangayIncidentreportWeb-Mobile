@@ -17,7 +17,12 @@ import type { RootStackParamList } from "./app";
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-type NotificationsRouteProp = RouteProp<RootStackParamList, "Notifications">;
+type NotificationsRouteProp = RouteProp<RootStackParamList, "Notifications"> & {
+  params: {
+    username: string;
+    incidentNotifications?: IncidentReport[];
+  };
+};
 type NotificationsNavigationProp = NativeStackNavigationProp<RootStackParamList, "Notifications">;
 
 interface LogEntry {
@@ -30,6 +35,16 @@ interface LogEntry {
   LOCATION?: string;
 }
 
+interface IncidentReport {
+  id: number;
+  type: string;
+  reported_by: string;
+  location: string;
+  status: string;
+  assigned: string;
+  created_at: string;
+}
+
 const Notifications: React.FC = () => {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [viewedNotifications, setViewedNotifications] = useState<number[]>([]);
@@ -38,7 +53,13 @@ const Notifications: React.FC = () => {
   
   const navigation = useNavigation<NotificationsNavigationProp>();
   const route = useRoute<NotificationsRouteProp>();
-  const { username } = route.params;
+  const { username, incidentNotifications = [] } = route.params;
+
+  const [incidents, setIncidents] = useState<IncidentReport[]>([]);
+  const [viewedIncidents, setViewedIncidents] = useState<number[]>([]);
+
+  const newIncidents = incidents.filter(incident => !viewedIncidents.includes(incident.id));
+  const viewedIncidentsList = incidents.filter(incident => viewedIncidents.includes(incident.id));
 
   // Load viewed notifications from AsyncStorage
   const loadViewedNotifications = async () => {
@@ -67,7 +88,7 @@ const Notifications: React.FC = () => {
   // Fetch user logs from API
   const fetchLogs = async () => {
     try {
-      const response = await axios.get(`http://192.168.164.28:3001/api/logs/${username}`);
+      const response = await axios.get(`http://192.168.125.28:3001/api/logs/${username}`);
       setLogs(response.data || []);
       console.log(`Fetched ${response.data?.length || 0} logs for ${username}`);
     } catch (error) {
@@ -76,21 +97,39 @@ const Notifications: React.FC = () => {
     }
   };
 
-  // Initial load
+  // Modify the loadData function in useEffect
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
       await loadViewedNotifications();
+      await loadViewedIncidents(); // Load viewed incidents
       await fetchLogs();
+      await fetchIncidents(); // Fetch incidents
+      
+      // Set incidents from navigation params if available
+      if (incidentNotifications.length > 0) {
+        setIncidents(incidentNotifications);
+      }
+  
       setLoading(false);
     };
     loadData();
   }, [username]);
 
+  // Add function to mark incident as viewed
+  const markIncidentAsViewed = async (incidentId: number) => {
+    if (!viewedIncidents.includes(incidentId)) {
+      const newViewedIds = [...viewedIncidents, incidentId];
+      setViewedIncidents(newViewedIds);
+      await saveViewedIncidents(newViewedIds);
+    }
+  };
+
   // Refresh function
   const onRefresh = async () => {
     setRefreshing(true);
     await fetchLogs();
+    await fetchIncidents(); // Refresh incidents too
     setRefreshing(false);
   };
 
@@ -106,11 +145,16 @@ const Notifications: React.FC = () => {
   // Mark all notifications as viewed
   const markAllAsViewed = async () => {
     const allLogIds = logs.map(log => log.ID);
+    const allIncidentIds = incidents.map(incident => incident.id);
+    
     setViewedNotifications(allLogIds);
+    setViewedIncidents(allIncidentIds);
+    
     await saveViewedNotifications(allLogIds);
+    await saveViewedIncidents(allIncidentIds);
   };
 
-  // Clear all viewed notifications (reset)
+  // Modify the clearAllViewed function to include incidents
   const clearAllViewed = async () => {
     Alert.alert(
       "Clear Viewed",
@@ -121,10 +165,164 @@ const Notifications: React.FC = () => {
           text: "Clear",
           onPress: async () => {
             setViewedNotifications([]);
+            setViewedIncidents([]);
             await saveViewedNotifications([]);
+            await saveViewedIncidents([]);
           },
         },
       ]
+    );
+  };
+
+  const loadViewedIncidents = async () => {
+    try {
+      const viewed = await AsyncStorage.getItem(`viewed_incidents_${username}`);
+      if (viewed) {
+        setViewedIncidents(JSON.parse(viewed));
+      }
+    } catch (error) {
+      console.error("Error loading viewed incidents:", error);
+    }
+  };
+
+  // Add function to save viewed incidents to AsyncStorage
+  const saveViewedIncidents = async (viewedIds: number[]) => {
+    try {
+      await AsyncStorage.setItem(
+        `viewed_incidents_${username}`,
+        JSON.stringify(viewedIds)
+      );
+    } catch (error) {
+      console.error("Error saving viewed incidents:", error);
+    }
+  };
+
+  // Add function to fetch incidents from API
+  const fetchIncidents = async () => {
+    try {
+      const response = await axios.get(`http://192.168.125.28:3001/api/incidents/assigned/${username}`);
+      setIncidents(response.data || []);
+      console.log(`Fetched ${response.data?.length || 0} assigned incidents for ${username}`);
+    } catch (error) {
+      console.error("Error fetching incidents:", error);
+      // Don't show error for incident fetch failures
+    }
+  };
+
+ // Function to resolve incident (UPDATED VERSION)
+const resolveIncident = async (incidentId: number) => {
+  try {
+    // Pass the username to track who resolved it
+    await axios.put(`http://192.168.125.28:3001/api/incidents/${incidentId}/resolve`, {
+      resolved_by: username  // Add this to track who resolved it
+    });
+    
+    // Update local state
+    setIncidents(prevIncidents => 
+      prevIncidents.map(incident => 
+        incident.id === incidentId 
+          ? { ...incident, status: 'Resolved' }
+          : incident
+      )
+    );
+    
+    Alert.alert("Success", "Incident marked as resolved");
+  } catch (error) {
+    console.error("Error resolving incident:", error);
+    Alert.alert("Error", "Failed to resolve incident");
+  }
+};
+
+  // Add function to show incident details with resolve option
+const showIncidentDetails = (incident: IncidentReport) => {
+  const incidentDetails = `Header Type: ${incident.type}
+Reported By: ${incident.reported_by}
+Location: ${incident.location}
+Status: ${incident.status}`;
+
+  // Define buttons with proper typing
+  const buttons: Array<{
+    text: string;
+    style?: "default" | "cancel" | "destructive";
+    onPress?: () => void;
+  }> = [
+    { text: "Cancel", style: "cancel" }
+  ];
+
+  // Only show resolve button if incident is not already resolved
+  if (incident.status !== 'Resolved') {
+    buttons.push({
+      text: "Mark as Resolved",
+      onPress: () => {
+        Alert.alert(
+          "Confirm Resolution",
+          "Are you sure you want to mark this incident as resolved?",
+          [
+            { text: "Cancel", style: "cancel" },
+            {
+              text: "Confirm",
+              onPress: () => resolveIncident(incident.id),
+            },
+          ]
+        );
+      },
+    });
+  }
+
+  Alert.alert("You've Been Assigned", incidentDetails, buttons);
+};
+
+  // Add function to render incident notification item
+  const renderIncidentItem = (incident: IncidentReport, isNew: boolean) => {
+    const date = new Date(incident.created_at).toLocaleDateString();
+    const time = new Date(incident.created_at).toLocaleTimeString();
+    const isResolved = incident.status === 'Resolved';
+    
+    return (
+      <TouchableOpacity
+        key={`incident_${incident.id}`}
+        style={[
+          styles.notificationItem,
+          isNew ? styles.newNotification : styles.viewedNotification
+        ]}
+        onPress={() => {
+          markIncidentAsViewed(incident.id);
+          showIncidentDetails(incident);
+        }}
+      >
+        <View style={styles.notificationHeader}>
+          <View style={styles.notificationIcon}>
+            <Ionicons 
+              name={isResolved ? "checkmark-circle" : (isNew ? "alert-circle" : "alert-circle-outline")} 
+              size={20} 
+              color={isResolved ? "#4CAF50" : (isNew ? "#FF5722" : "#666")} 
+            />
+          </View>
+          <View style={styles.notificationContent}>
+            <Text style={[styles.notificationTitle, isNew && styles.newIncidentTitle]}>
+              Incident Assignment: {incident.type}
+            </Text>
+            <Text style={styles.notificationDate}>
+              {date} at {time}
+            </Text>
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <Ionicons name="location-sharp" size={14} color="#FF9800" style={{ marginRight: 4 }} />
+              <Text style={styles.notificationLocation}>{incident.location}</Text>
+              </View>
+            <Text style={[
+              styles.notificationLocation,
+              isResolved && { color: "#4CAF50", fontWeight: "bold" }
+            ]}>
+               Status: {incident.status}
+            </Text>
+            <Text style={styles.incidentReporter}>
+              Reported by: {incident.reported_by}
+            </Text>
+          </View>
+          {isNew && <View style={styles.newIncidentBadge} />}
+        </View>
+
+      </TouchableOpacity>
     );
   };
 
@@ -250,11 +448,11 @@ const Notifications: React.FC = () => {
         {/* Summary */}
         <View style={styles.summary}>
           <Text style={styles.summaryText}>
-            {newNotifications.length} new, {viewedNotificationsList.length} viewed
+            {newNotifications.length + newIncidents.length} new {viewedNotificationsList.length + viewedIncidentsList.length} viewed
           </Text>
         </View>
 
-        {logs.length === 0 ? (
+        {logs.length === 0 && incidents.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Ionicons name="notifications-off-outline" size={64} color="#ccc" />
             <Text style={styles.emptyText}>No notifications yet</Text>
@@ -264,6 +462,16 @@ const Notifications: React.FC = () => {
           </View>
         ) : (
           <>
+            {/* New Incident Assignments */}
+            {newIncidents.length > 0 && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>
+                  🚨 New Incident Assignments ({newIncidents.length})
+                </Text>
+                {newIncidents.map(incident => renderIncidentItem(incident, true))}
+              </View>
+            )}
+
             {/* New Notifications */}
             {newNotifications.length > 0 && (
               <View style={styles.section}>
@@ -274,12 +482,15 @@ const Notifications: React.FC = () => {
               </View>
             )}
 
-            {/* Viewed Notifications */}
-            {viewedNotificationsList.length > 0 && (
+            {/* Earlier - Combined viewed notifications and incidents */}
+            {(viewedNotificationsList.length > 0 || viewedIncidentsList.length > 0) && (
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>
-                  Earlier ({viewedNotificationsList.length})
+                  Earlier ({viewedNotificationsList.length + viewedIncidentsList.length})
                 </Text>
+                {/* Render viewed incidents first */}
+                {viewedIncidentsList.map(incident => renderIncidentItem(incident, false))}
+                {/* Then render viewed notifications */}
                 {viewedNotificationsList.map(log => renderNotificationItem(log, false))}
               </View>
             )}
@@ -436,6 +647,23 @@ const styles = StyleSheet.create({
     color: "#ccc",
     marginTop: 5,
     textAlign: "center",
+  },
+  newIncidentTitle: {
+    fontWeight: "bold" as const,
+    color: "#D32F2F",
+  },
+  incidentReporter: {
+    fontSize: 13,
+    color: "#777",
+    fontStyle: "italic" as const,
+    marginTop: 2,
+  },
+  newIncidentBadge: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#FF5722",
+    marginTop: 5,
   },
 });
 

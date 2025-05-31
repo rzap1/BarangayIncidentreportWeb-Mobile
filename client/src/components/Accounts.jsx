@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import './Accounts.css';
+import Navbar from './Navbar'; 
 
 function Accounts() {
   const [accounts, setAccounts] = useState([]);
@@ -45,7 +46,7 @@ function Accounts() {
 
   const fetchUsers = async () => {
     try {
-      const response = await fetch('http://192.168.164.28:3001/api/users');
+      const response = await fetch('http://192.168.125.28:3001/api/users');
       const data = await response.json();
       setAccounts(data);
     } catch (error) {
@@ -68,7 +69,7 @@ function Accounts() {
     if (!newAccount.name || !newAccount.username || !newAccount.password) return;
     
     try {
-      const response = await fetch('http://192.168.164.28:3001/register', {
+      const response = await fetch('http://192.168.125.28:3001/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -115,7 +116,7 @@ const handleEditAccount = async (e) => {
   if (!editAccount.name || !editAccount.username) return;
   
   try {
-    const response = await fetch(`http://192.168.164.28:3001/api/users/${editAccount.id}`, {
+    const response = await fetch(`http://192.168.125.28:3001/api/users/${editAccount.id}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -177,7 +178,7 @@ const handleEditAccount = async (e) => {
   }
   
   try {
-    const response = await fetch(`http://192.168.164.28:3001/api/users/${accountId}`, {
+    const response = await fetch(`http://192.168.125.28:3001/api/users/${accountId}`, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
@@ -212,49 +213,8 @@ const handleEditAccount = async (e) => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
-            <div className="flex">
-              <div className="flex-shrink-0 flex items-center">
-                <h1 className="text-xl font-bold text-gray-900">Admin Dashboard</h1>
-              </div>
-              <nav className="ml-6 flex space-x-8">
-                <Link to="/Dashboard" className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
-                  Home
-                </Link>
-                <Link to="/incident-report" className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
-                  Incident Report
-                </Link>
-                <Link to="/scheduling" className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
-                  Scheduling & Assessment
-                </Link>
-                <Link to="/gis-mapping" className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
-                  GIS Mapping
-                </Link>
-                <Link to="/patrol-logs" className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
-                  Patrol Logs
-                </Link>
-                <Link to="/accounts" className="border-indigo-500 text-indigo-600 hover:text-indigo-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
-                  Accounts
-                </Link>
-              </nav>
-            </div>
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <span className="relative inline-block">
-                  <img
-                    className="h-8 w-8 rounded-full"
-                    src="/api/placeholder/150/150"
-                    alt="User avatar"
-                  />
-                  <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-green-400 ring-2 ring-white"></span>
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
+      {/* Replace the hardcoded header with the Navbar component */}
+      <Navbar />
 
       <main className="py-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

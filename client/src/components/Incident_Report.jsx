@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
 import { createPortal } from 'react-dom';
-import UserAvatarDropdown from './AvatarDropdown';
+import Navbar from './Navbar';
 import './IncidentReport.css';
 
 function IncidentReport() {
@@ -14,7 +13,6 @@ function IncidentReport() {
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [availableTanods, setAvailableTanods] = useState([]);
   const [selectedTanod, setSelectedTanod] = useState('');
-  const [currentUser, setCurrentUser] = useState(null);
   
   const getStatusColor = (status) => {
     switch (status) {
@@ -31,7 +29,7 @@ function IncidentReport() {
 
   useEffect(() => {
     const fetchData = () => {
-      fetch("http://192.168.164.28:3001/api/incidents")
+      fetch("http://192.168.125.28:3001/api/incidents")
         .then(res => res.json())
         .then(data => setIncidents(data))
         .catch(err => {
@@ -50,23 +48,11 @@ function IncidentReport() {
     return () => clearInterval(intervalId);
   }, []);
 
-  // Fetch current user info
-  useEffect(() => {
-    // Get username from localStorage or context
-    const username = localStorage.getItem('username'); // Assuming you store username on login
-    if (username) {
-      fetch(`http://192.168.164.28:3001/api/user/${username}`)
-        .then(res => res.json())
-        .then(data => setCurrentUser(data))
-        .catch(err => console.error("Failed to fetch user info:", err));
-    }
-  }, []);
-
   const fetchAvailableTanods = () => {
     // Get today's date
     const today = new Date().toISOString().slice(0, 10);
     
-    fetch("http://192.168.164.28:3001/api/logs")
+    fetch("http://192.168.125.28:3001/api/logs")
       .then(res => res.json())
       .then(data => {
         // Filter logs for today that have TIME_IN but no TIME_OUT
@@ -137,7 +123,7 @@ function IncidentReport() {
     setIsUpdating(true);
     
     // Update incident status to "In Progress" and assign tanod
-    fetch(`http://192.168.164.28:3001/api/incidents/${selectedIncident.id}/status`, {
+    fetch(`http://192.168.125.28:3001/api/incidents/${selectedIncident.id}/status`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -187,7 +173,7 @@ function IncidentReport() {
     
     setIsUpdating(true);
     
-    fetch(`http://192.168.164.28:3001/api/incidents/${selectedIncident.id}/status`, {
+    fetch(`http://192.168.125.28:3001/api/incidents/${selectedIncident.id}/status`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -222,60 +208,10 @@ function IncidentReport() {
       });
   };
 
-  const handleLogout = () => {
-    // Clear all stored data
-    localStorage.removeItem('username');
-    localStorage.removeItem('userRole');
-    localStorage.removeItem('token'); // if you have auth tokens
-    localStorage.removeItem('userId'); // if you store user ID
-    
-    // Optional: Clear all localStorage
-    localStorage.clear();
-    
-    // Redirect to login page
-    window.location.href = '/login';
-    // Or use React Router: navigate('/login');
-  };
-
   return (
     <div className="dashboard-container">
-      <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
-            <div className="flex">
-              <div className="flex-shrink-0 flex items-center">
-                <h1 className="text-xl font-bold text-gray-900">Admin Dashboard</h1>
-              </div>
-              <nav className="ml-6 flex space-x-8">
-                <Link to="/Dashboard" className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
-                  Dashboard
-                </Link>
-                <Link to="/incident-report" className="border-indigo-500 text-indigo-600 hover:text-indigo-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
-                  Incident Report
-                </Link>
-                <Link to="/scheduling" className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
-                  Scheduling & Assessment
-                </Link>
-                <Link to="/gis-mapping" className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
-                  GIS Mapping
-                </Link>
-                <Link to="/patrol-logs" className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
-                  Patrol Logs
-                </Link>
-                <Link to="/accounts" className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
-                  Accounts
-                </Link>
-              </nav>
-            </div>
-            <div className="flex items-center">
-              <UserAvatarDropdown 
-                currentUser={currentUser} 
-                onLogout={handleLogout}
-              />
-            </div>
-          </div>
-        </div>
-      </header>
+      {/* Updated Navbar component without currentUser prop */}
+      <Navbar />
 
       <div className="account-management-container">
         <div className="account-header">
@@ -319,7 +255,7 @@ function IncidentReport() {
                     <td className="incident-cell">
                       <div className="incident-icon">
                         <img
-                          src={`http://192.168.164.28:3001/uploads/${item.image}`}
+                          src={`http://192.168.125.28:3001/uploads/${item.image}`}
                           alt="Incident"
                           className="small-avatar"
                         />
@@ -350,6 +286,7 @@ function IncidentReport() {
         </div>
       </div>
 
+      {/* All modal components remain the same */}
       {showModal && selectedIncident && 
         createPortal(
           <div className="modal-overlay" onClick={closeModal}>
@@ -371,7 +308,7 @@ function IncidentReport() {
                   <label>Incident Photo</label>
                   <div className="modal-image-container">
                     <img 
-                      src={`http://192.168.164.28:3001/uploads/${selectedIncident.image}`} 
+                      src={`http://192.168.125.28:3001/uploads/${selectedIncident.image}`} 
                       alt="Incident" 
                       className="modal-image" 
                     />

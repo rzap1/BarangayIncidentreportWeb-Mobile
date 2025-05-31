@@ -88,7 +88,7 @@ app.post("/login", (req, res) => {
 
 // API endpoint to fetch all users
 app.get("/api/users", (req, res) => {
-  const sql = "SELECT ID, USER, NAME, EMAIL, ADDRESS, ROLE, STATUS FROM users";
+  const sql = "SELECT ID, USER, NAME, EMAIL, ADDRESS, ROLE, STATUS, IMAGE FROM users";
   db.query(sql, (err, results) => {
     if (err) {
       console.error("❌ SQL error:", err);
@@ -97,7 +97,6 @@ app.get("/api/users", (req, res) => {
     res.json(results);
   });
 });
-
 
 // Update user by ID with image upload support
 app.put("/api/users/:id", upload.single("image"), (req, res) => {
@@ -148,7 +147,7 @@ app.put("/api/users/:id", upload.single("image"), (req, res) => {
       }
     });
   }
-  
+ 
   // Complete the SQL query
   sql += " WHERE ID = ?";
   params.push(userId);
@@ -252,9 +251,7 @@ app.post("/api/incidents", upload.single("image"), (req, res) => {
   if (isNaN(latNum) || isNaN(lonNum)) {
     return res.status(400).json({ error: "Invalid coordinates" });
   }
-
   const status = "Under Review";
-
   console.log("Received incident report:", {
     incidentType,
     latitude: latNum,
@@ -329,6 +326,168 @@ app.put("/api/incidents/:id/status", (req, res) => {
       message: "Incident status updated successfully",
       status: status,
       assigned_tanod: assigned_tanod || null
+    });
+  });
+});
+
+// API endpoint to fetch incidents assigned to a specific user
+app.get("/api/incidents/assigned/:username", (req, res) => {
+  const username = req.params.username;
+  
+  if (!username) {
+    return res.status(400).json({ error: "Username is required" });
+  }
+  
+  const sql = `
+    SELECT id, incident_type as type, location, status, datetime as created_at, 
+           image, reported_by, latitude, longitude, assigned
+    FROM incident_report 
+    WHERE assigned = ? 
+    ORDER BY datetime DESC
+  `;
+  
+  db.query(sql, [username], (err, results) => {
+    if (err) {
+      console.error("❌ SQL error fetching assigned incidents:", err);
+      return res.status(500).json({ error: "Failed to fetch assigned incidents" });
+    }
+    
+    console.log(`Fetched ${results.length} assigned incidents for ${username}`);
+    res.json(results);
+  });
+});
+
+// API endpoint to mark incident as resolved (FIXED VERSION)
+app.put("/api/incidents/:id/resolve", (req, res) => {
+  const incidentId = req.params.id;
+  const { resolved_by } = req.body; // Optional: track who resolved it
+  
+  if (!incidentId) {
+    return res.status(400).json({ 
+      success: false, 
+      message: "Incident ID is required" 
+    });
+  }
+  
+  // Simple update - only change status to 'Resolved'
+  const sql = `UPDATE incident_report SET status = 'Resolved' WHERE id = ?`;
+  
+  db.query(sql, [incidentId], (err, result) => {
+    if (err) {
+      console.error("❌ SQL update error:", err);
+      return res.status(500).json({ 
+        success: false, 
+        message: "Database error" 
+      });
+    }
+    
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ 
+        success: false, 
+        message: "Incident not found" 
+      });
+    }
+    
+    // Log the resolution action (simplified)
+    if (resolved_by) {
+      const logSql = `
+        INSERT INTO logs_patrol (USER, TIME, ACTION, LOCATION)
+        VALUES (?, ?, ?, ?)
+      `;
+      
+      // Get incident details for logging
+      const getIncidentSql = "SELECT incident_type, location FROM incident_report WHERE id = ?";
+      db.query(getIncidentSql, [incidentId], (err, incidentResults) => {
+        if (!err && incidentResults.length > 0) {
+          const incident = incidentResults[0];
+          db.query(logSql, [
+            resolved_by, 
+            getGMT8Time(), 
+            `Resolved Incident: ${incident.incident_type}`,
+            incident.location
+          ], (logErr) => {
+            if (logErr) {
+              console.error("Error logging incident resolution:", logErr);
+            }
+          });
+        }
+      });
+    }
+    
+    res.json({ 
+      success: true, 
+      message: "Incident marked as resolved successfully",
+      incident_id: incidentId,
+      status: 'Resolved'
+    });
+  });
+});
+
+// API endpoint to get incident details by ID
+app.get("/api/incidents/:id", (req, res) => {
+  const incidentId = req.params.id;
+  
+  if (!incidentId) {
+    return res.status(400).json({ error: "Incident ID is required" });
+  }
+  
+  const sql = `
+    SELECT id, incident_type as type, location, status, datetime as created_at,
+           image, reported_by, latitude, longitude, assigned, resolved_by, resolved_at
+    FROM incident_report 
+    WHERE id = ?
+  `;
+  
+  db.query(sql, [incidentId], (err, results) => {
+    if (err) {
+      console.error("❌ SQL error fetching incident:", err);
+      return res.status(500).json({ error: "Failed to fetch incident details" });
+    }
+    
+    if (results.length === 0) {
+      return res.status(404).json({ error: "Incident not found" });
+    }
+    
+    res.json(results[0]);
+  });
+});
+
+// API endpoint to check for new incident assignments for a user
+app.get("/api/incidents/new-assignments/:username", (req, res) => {
+  const username = req.params.username;
+  const { last_check } = req.query; // Optional timestamp for checking new assignments
+  
+  if (!username) {
+    return res.status(400).json({ error: "Username is required" });
+  }
+  
+  let sql = `
+    SELECT id, incident_type as type, location, status, datetime as created_at,
+           reported_by, assigned
+    FROM incident_report 
+    WHERE assigned = ? AND status != 'Resolved'
+  `;
+  
+  const params = [username];
+  
+  // If last_check timestamp is provided, only get assignments after that time
+  if (last_check) {
+    sql += ` AND datetime > ?`;
+    params.push(last_check);
+  }
+  
+  sql += ` ORDER BY datetime DESC`;
+  
+  db.query(sql, params, (err, results) => {
+    if (err) {
+      console.error("❌ SQL error fetching new assignments:", err);
+      return res.status(500).json({ error: "Failed to fetch new assignments" });
+    }
+    
+    res.json({
+      success: true,
+      new_assignments: results,
+      count: results.length
     });
   });
 });
@@ -732,7 +891,6 @@ app.get("/api/user-time-status/:username", async (req, res) => {
     // Get current GMT+8 time
     const currentTime = getGMT8Time();
     const today = currentTime.slice(0, 10); // Get date part (YYYY-MM-DD)
-
     // Get user's schedule information
     const schedule = await new Promise((resolve, reject) => {
       const sql = "SELECT * FROM schedules WHERE USER = ?";
@@ -745,7 +903,6 @@ app.get("/api/user-time-status/:username", async (req, res) => {
     if (!schedule) {
       return res.status(404).json({ error: "No schedule found for user" });
     }
-
     // Get today's log entry
     const todayLog = await new Promise((resolve, reject) => {
       const sql = "SELECT * FROM logs WHERE USER = ? AND DATE(TIME) = ? LIMIT 1";
@@ -809,7 +966,6 @@ app.get("/api/user-time-status/:username", async (req, res) => {
   }
 });
 
-
 // Also modify the endpoint to not update schedule STATUS:
 app.post("/api/time-record", async (req, res) => {
   const { user, action } = req.body;
@@ -827,7 +983,6 @@ app.post("/api/time-record", async (req, res) => {
       message: "Action must be either 'TIME-IN' or 'TIME-OUT'" 
     });
   }
-
   // Check if user has a valid schedule for TIME-IN
   if (action === 'TIME-IN') {
     try {
@@ -853,9 +1008,7 @@ app.post("/api/time-record", async (req, res) => {
       });
     }
   }
-  
   const currentTime = getGMT8Time();
-  
   try {
     const today = currentTime.slice(0, 10);
     
@@ -907,7 +1060,6 @@ app.post("/api/time-record", async (req, res) => {
         );
       });
     }
-
     // Update schedule STATUS to match the log ACTION
     try {
       await new Promise((resolve, reject) => {
@@ -921,7 +1073,6 @@ app.post("/api/time-record", async (req, res) => {
       console.error("❌ Error updating schedule status:", error);
       // Don't fail the entire request if schedule update fails
     }
-
     res.json({ 
       success: true, 
       message: `${action} recorded successfully`,
@@ -938,8 +1089,18 @@ app.post("/api/time-record", async (req, res) => {
   }
 });
 
-
-
+// Add this API endpoint to your backend (paste.txt)
+app.get("/api/logs_patrol", (req, res) => {
+  const sql = "SELECT * FROM logs_patrol ORDER BY TIME DESC";
+  
+  db.query(sql, (err, results) => {
+    if (err) {
+      console.error("❌ SQL error fetching logs_patrol:", err);
+      return res.status(500).json({ error: "Failed to fetch patrol logs" });
+    }
+    res.json(results);
+  });
+});
 
 // Start server
 app.listen(3001, () => {

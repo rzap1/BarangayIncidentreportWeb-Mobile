@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
-
+import Navbar from './Navbar';
 const ScheduleAssignment = () => {
   const [personnel, setPersonnel] = useState([]);
   const [selectedPerson, setSelectedPerson] = useState(null);
@@ -13,7 +13,7 @@ const ScheduleAssignment = () => {
   const [syncMessage, setSyncMessage] = useState('');
 
   // Base URL for your backend
-  const BASE_URL = 'http://192.168.164.28:3001';
+  const BASE_URL = 'http://192.168.125.28:3001';
 
   // Function to get image URL
   const getImageUrl = (imageName) => {
@@ -48,32 +48,38 @@ const ScheduleAssignment = () => {
 
   // Function to get the most recent log time for display
   const getMostRecentLogTime = async (username) => {
-    try {
-      const response = await axios.get(`${BASE_URL}/api/logs/${username}`);
-      if (response.data && response.data.length > 0) {
-        // Get today's date
-        const today = new Date().toISOString().slice(0, 10);
-        
-        // Find today's log first
-        const todayLog = response.data.find(log => {
-          const logDate = new Date(log.TIME).toISOString().slice(0, 10);
-          return logDate === today;
-        });
-        
-        if (todayLog) {
-          // Return TIME_OUT if available, otherwise TIME_IN
-          return todayLog.TIME_OUT || todayLog.TIME_IN || todayLog.TIME;
-        }
-        
-        // If no today's log, get the most recent log
-        return response.data[0].TIME_OUT || response.data[0].TIME_IN || response.data[0].TIME;
+  try {
+    const response = await axios.get(`${BASE_URL}/api/logs/${username}`);
+    if (response.data && response.data.length > 0) {
+      // Get today's date
+      const today = new Date().toISOString().slice(0, 10);
+      
+      // Find today's log first
+      const todayLog = response.data.find(log => {
+        const logDate = new Date(log.TIME).toISOString().slice(0, 10);
+        return logDate === today;
+      });
+      
+      if (todayLog) {
+        // Return an object with both time and location
+        return {
+          time: todayLog.TIME_OUT || todayLog.TIME_IN || todayLog.TIME,
+          location: todayLog.LOCATION || null
+        };
       }
-      return null;
-    } catch (error) {
-      console.error(`Error fetching logs for ${username}:`, error);
-      return null;
+      
+      // If no today's log, get the most recent log
+      return {
+        time: response.data[0].TIME_OUT || response.data[0].TIME_IN || response.data[0].TIME,
+        location: response.data[0].LOCATION || null
+      };
     }
-  };
+    return null;
+  } catch (error) {
+    console.error(`Error fetching logs for ${username}:`, error);
+    return null;
+  }
+};
 
   // Function to calculate status based on logs
   const calculateStatusFromLogs = async (username) => {
@@ -99,19 +105,20 @@ const ScheduleAssignment = () => {
       if (scheduleResponse.data && Array.isArray(scheduleResponse.data)) {
         console.log("Loaded schedules:", scheduleResponse.data);
         
-        // Calculate status and get log times for each personnel
-        const personnelWithCalculatedData = await Promise.all(
-          scheduleResponse.data.map(async (person) => {
-            const calculatedStatus = await calculateStatusFromLogs(person.USER);
-            const mostRecentLogTime = await getMostRecentLogTime(person.USER);
-            
-            return {
-              ...person,
-              CALCULATED_STATUS: calculatedStatus,
-              LOG_TIME: mostRecentLogTime // Time from logs to display in SCHEDULE TIME column
-            };
-          })
-        );
+              // Calculate status and get log times for each personnel
+              const personnelWithCalculatedData = await Promise.all(
+        scheduleResponse.data.map(async (person) => {
+          const calculatedStatus = await calculateStatusFromLogs(person.USER);
+          const logData = await getMostRecentLogTime(person.USER);
+          
+          return {
+            ...person,
+            CALCULATED_STATUS: calculatedStatus,
+            LOG_TIME: logData?.time || null,
+            LOG_LOCATION: logData?.location || null // Add log location
+          };
+        })
+      );
         
         setPersonnel(personnelWithCalculatedData);
       } else {
@@ -175,10 +182,10 @@ const ScheduleAssignment = () => {
   const handleClick = (person) => {
     setSelectedPerson(person);
     setFormData({
-      status: person.CALCULATED_STATUS || '',
-      location: person.LOCATION || '',
-      time: person.TIME || ''
-    });
+          status: person.CALCULATED_STATUS || '',
+          location: person.LOG_LOCATION || person.LOCATION || '', 
+          time: person.TIME || ''
+        });
     setShowModal(true);
   };
 
@@ -246,47 +253,9 @@ const ScheduleAssignment = () => {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      {/* Header/Navigation */}
-      <header className="bg-white shadow-sm border-b border-red-800">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="flex justify-between h-16">
-            <div className="flex">
-              <div className="flex-shrink-0 flex items-center">
-                <h1 className="text-xl font-bold text-gray-900">Admin Dashboard</h1>
-              </div>
-              <nav className="ml-6 flex space-x-8">
-                <Link to="/Dashboard" className="border-transparent text-gray-500 hover:text-gray-700 inline-flex items-center px-1 pt-1 text-sm font-medium">
-                  Home
-                </Link>
-                <Link to="/incident-report" className="border-transparent text-gray-500 hover:text-gray-700 inline-flex items-center px-1 pt-1 text-sm font-medium">
-                  Incident Report
-                </Link>
-                <Link to="/scheduling" className="border-indigo-500 text-indigo-600 hover:text-indigo-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
-                  Scheduling & Assessment
-                </Link>
-                <Link to="/gis-mapping" className="border-transparent text-gray-500 hover:text-gray-700 inline-flex items-center px-1 pt-1 text-sm font-medium">
-                  GIS Mapping
-                </Link>
-                <Link to="/patrol-logs" className="border-transparent text-gray-500 hover:text-gray-700 inline-flex items-center px-1 pt-1 text-sm font-medium">
-                  Patrol Logs
-                </Link>
-                <Link to="/accounts" className="border-transparent text-gray-500 hover:text-gray-700 inline-flex items-center px-1 pt-1 text-sm font-medium">
-                  Accounts
-                </Link>
-              </nav>
-            </div>
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <img
-                  className="h-8 w-8 rounded-full"
-                  src="/api/placeholder/150/150"
-                  alt="User avatar"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
+      
+      {/* Replace the hardcoded header with the Navbar component */}
+      <Navbar />
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -469,11 +438,10 @@ const ScheduleAssignment = () => {
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {person.LOCATION || "Not assigned"}
+                          {person.LOG_LOCATION || "Not assigned"}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {/* Display LOG_TIME (from logs) instead of TIME (from schedules) */}
-                          {person.LOG_TIME ? formatDateTime(person.LOG_TIME) : "No recent activity"}
+                          {formatDateTime(person.TIME) || "Not scheduled"}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                           <button 

@@ -4,7 +4,7 @@ import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import './GISmapping.css';
-
+import Navbar from './Navbar';
 // Fix for default markers in react-leaflet
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -46,7 +46,7 @@ function GISMapping() {
   const fetchIncidents = async () => {
     try {
       setLoading(true);
-      const response = await fetch('http://192.168.164.28:3001/api/incidents');
+      const response = await fetch('http://192.168.125.28:3001/api/incidents');
       
       if (!response.ok) {
         throw new Error('Failed to fetch incidents');
@@ -96,49 +96,8 @@ function GISMapping() {
 
   return (
     <div className="dashboard-container">
-      <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
-            <div className="flex">
-              <div className="flex-shrink-0 flex items-center">
-                <h1 className="text-xl font-bold text-gray-900">Admin Dashboard</h1>
-              </div>
-              <nav className="ml-6 flex space-x-8">
-                <Link to="/Dashboard" className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
-                  Home
-                </Link>
-                <Link to="/incident-report" className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
-                  Incident Report
-                </Link>
-                <Link to="/scheduling" className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
-                  Scheduling & Assessment
-                </Link>
-                <Link to="/gis-mapping" className="border-indigo-500 text-indigo-600 hover:text-indigo-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
-                  GIS Mapping
-                </Link>
-                <Link to="/patrol-logs" className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
-                  Patrol Logs
-                </Link>
-                <Link to="/accounts" className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
-                  Accounts
-                </Link>
-              </nav>
-            </div>
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <span className="relative inline-block">
-                  <img
-                    className="h-8 w-8 rounded-full"
-                    src="/api/placeholder/150/150"
-                    alt="User avatar"
-                  />
-                  <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-green-400 ring-2 ring-white"></span>
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
+      {/* Replace the hardcoded header with the Navbar component */}
+      <Navbar />
 
       <div className="gis-mapping-wrapper">
         <div className="gis-header">
@@ -238,7 +197,7 @@ function GISMapping() {
                         {incident.image && (
                           <div className="popup-image">
                             <img 
-                              src={`http://192.168.164.28:3001/uploads/${incident.image}`}
+                              src={`http://192.168.125.28:3001/uploads/${incident.image}`}
                               alt="Incident"
                               style={{ maxWidth: '200px', maxHeight: '150px', objectFit: 'cover' }}
                             />
