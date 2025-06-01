@@ -28,20 +28,28 @@ const Login = ({ setShowLogin, onLoginSuccess }) => {
       setMessage(res.data.message);
 
       if (res.data.success) {
+        // The backend already checks for Admin role, but we can double-check here
+        const userRole = res.data.user?.role || res.data.user?.ROLE;
+        
+        if (userRole !== 'Admin') {
+          setMessage("Access denied. Only Admin users are allowed to login.");
+          setLoading(false);
+          return;
+        }
+
         // Store user data in localStorage
         localStorage.setItem('username', username);
+        localStorage.setItem('userRole', userRole);
+        localStorage.setItem('userId', res.data.user.id);
+        localStorage.setItem('userName', res.data.user.name);
+        localStorage.setItem('userEmail', res.data.user.email);
         
-        // If your backend returns additional user data, store it
-        if (res.data.user) {
-          localStorage.setItem('userRole', res.data.user.role || res.data.user.ROLE);
-          localStorage.setItem('userId', res.data.user.id || res.data.user.ID);
-          // Store the IMAGE if it's returned in login response
-          if (res.data.user.image || res.data.user.IMAGE) {
-            localStorage.setItem('userImage', res.data.user.image || res.data.user.IMAGE);
-          }
+        // Store the IMAGE if it's returned
+        if (res.data.user.image) {
+          localStorage.setItem('userImage', res.data.user.image);
         }
         
-        // Store token if returned
+        // Store token if returned (for future use)
         if (res.data.token) {
           localStorage.setItem('token', res.data.token);
         }
@@ -50,6 +58,7 @@ const Login = ({ setShowLogin, onLoginSuccess }) => {
           username: localStorage.getItem('username'),
           userRole: localStorage.getItem('userRole'),
           userId: localStorage.getItem('userId'),
+          userName: localStorage.getItem('userName'),
           userImage: localStorage.getItem('userImage')
         });
 

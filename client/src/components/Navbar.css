@@ -1,111 +1,354 @@
+/* User Avatar Dropdown Styles */
+.user-avatar-container {
+  position: relative;
+  display: inline-block;
+}
 
-        /* User Avatar Dropdown Styles */
-        .user-avatar-container {
-          position: relative;
-          display: inline-block;
-        }
+.avatar-wrapper {
+  position: relative;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 
-        .avatar-wrapper {
-          position: relative;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
+.avatar-image {
+  height: 32px;
+  width: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #e5e7eb;
+  transition: border-color 0.2s ease;
+}
 
-        .avatar-image {
-          height: 32px;
-          width: 32px;
-          border-radius: 50%;
-          object-fit: cover;
-          border: 2px solid #e5e7eb;
-          transition: border-color 0.2s ease;
-        }
+.avatar-wrapper:hover .avatar-image {
+  border-color: #6366f1;
+}
 
-        .avatar-wrapper:hover .avatar-image {
-          border-color: #6366f1;
-        }
+.online-indicator {
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 8px;
+  width: 8px;
+  background-color: #10b981;
+  border-radius: 50%;
+  border: 2px solid white;
+}
 
-        .online-indicator {
-          position: absolute;
-          top: 0;
-          right: 0;
-          height: 8px;
-          width: 8px;
-          background-color: #10b981;
-          border-radius: 50%;
-          border: 2px solid white;
-        }
+.user-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 8px;
+  width: 200px;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+  overflow: hidden;
+}
 
-        .user-dropdown {
-          position: absolute;
-          top: 100%;
-          right: 0;
-          margin-top: 8px;
-          width: 200px;
-          background: white;
-          border: 1px solid #e5e7eb;
-          border-radius: 8px;
-          box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-          z-index: 1000;
-          overflow: hidden;
-        }
+.dropdown-header {
+  padding: 12px 16px;
+  background-color: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+}
 
-        .dropdown-header {
-          padding: 12px 16px;
-          background-color: #f9fafb;
-          border-bottom: 1px solid #e5e7eb;
-        }
+.user-info {
+  text-align: left;
+}
 
-        .user-info {
-          text-align: left;
-        }
+.user-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 2px;
+}
 
-        .user-name {
-          font-size: 14px;
-          font-weight: 600;
-          color: #1f2937;
-          margin-bottom: 2px;
-        }
+.user-role {
+  font-size: 12px;
+  color: #6b7280;
+}
 
-        .user-role {
-          font-size: 12px;
-          color: #6b7280;
-        }
+.dropdown-divider {
+  height: 1px;
+  background-color: #e5e7eb;
+}
 
-        .dropdown-divider {
-          height: 1px;
-          background-color: #e5e7eb;
-        }
+.dropdown-item {
+  width: 100%;
+  padding: 10px 16px;
+  border: none;
+  background: none;
+  text-align: left;
+  font-size: 14px;
+  color: #374151;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background-color 0.2s ease;
+}
 
-        .dropdown-item {
-          width: 100%;
-          padding: 10px 16px;
-          border: none;
-          background: none;
-          text-align: left;
-          font-size: 14px;
-          color: #374151;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          transition: background-color 0.2s ease;
-        }
+.dropdown-item:hover {
+  background-color: #f3f4f6;
+}
 
-        .dropdown-item:hover {
-          background-color: #f3f4f6;
-        }
+.logout-item:hover {
+  background-color: #fef2f2;
+  color: #dc2626;
+}
 
-        .logout-item:hover {
-          background-color: #fef2f2;
-          color: #dc2626;
-        }
+.dropdown-icon {
+  font-size: 16px;
+  width: 16px;
+  text-align: center;
+}
 
-        .dropdown-icon {
-          font-size: 16px;
-          width: 16px;
-          text-align: center;
-        }
-    
-   
+/* Modal Styles */
+.modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 16px;
+  backdrop-filter: blur(2px);
+}
+
+.modal-container {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  width: 100%;
+  max-width: 500px; /* Reduced width since we don't need side-by-side layout */
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.modal-header {
+  background-color: #2563eb;
+  color: white;
+  padding: 16px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.modal-title {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.modal-close-btn {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 24px;
+  font-weight: bold;
+  cursor: pointer;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.modal-close-btn:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.modal {
+  padding: 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 100%;
+  margin: 0 auto;
+  padding-bottom: 24px;
+}
+
+.modal-form label {
+  color: #374151;
+}
+
+.image-upload-section {
+  text-align: center;
+  margin-bottom: 8px;
+}
+
+.image-preview-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.image-preview {
+  width: 80px;
+  height: 80px;
+  background-color: #f3f4f6;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.profile-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.default-avatar-icon {
+  width: 32px;
+  height: 32px;
+  color: #9ca3af;
+}
+
+.upload-label {
+  color: #2563eb;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.upload-label:hover {
+  color: #1d4ed8;
+}
+
+.file-input {
+  display: none;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column; /* Stack label above input */
+  gap: 6px; /* Small gap between label and input */
+  width: 100%;
+}
+
+.field-label {
+  font-size: 12px; /* Smaller font size */
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 0;
+}
+
+.form-input,
+.form-textarea {
+  width: 100%; /* Full width */
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  box-sizing: border-box; /* Include padding in width calculation */
+}
+
+.form-input:focus,
+.form-textarea:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.form-textarea {
+  resize: vertical;
+  min-height: 72px;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  padding-top: 16px;
+  border-top: 1px solid #e5e7eb;
+  margin-top: 8px;
+  width: 100%;
+}
+
+.cancel-btn,
+.save-btn {
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s ease;
+}
+
+.cancel-btn {
+  background-color: #f3f4f6;
+  color: #374151;
+}
+
+.cancel-btn:hover {
+  background-color: #e5e7eb;
+}
+
+.save-btn {
+  background-color: #2563eb;
+  color: white;
+}
+
+.save-btn:hover {
+  background-color: #1d4ed8;
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .modal-backdrop {
+    padding: 8px;
+  }
+  
+  .modal-container {
+    max-width: 100%;
+  }
+  
+  .modal {
+    padding: 16px;
+  }
+  
+  .modal-header {
+    padding: 12px 16px;
+  }
+  
+  /* Form fields already stack vertically, so no changes needed for mobile */
+}

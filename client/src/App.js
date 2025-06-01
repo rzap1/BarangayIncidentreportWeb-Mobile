@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import Login from './components/Login';
 import About from "./components/About";
-import Home from "./components/Dashboard";
 import IncidentReport from "./components/Incident_Report";
 import ScheduleAssignment from './components/ScheduleAssignment'; // Import your new component
 import "./App.css";
@@ -28,10 +27,6 @@ function App() {
     localStorage.setItem("isLoggedIn", true);
   };
 
-  const handleLogout = () => {
-    setIsLoggedIn(false);
-    localStorage.removeItem("isLoggedIn");
-  };
 
   return (
     <Router>
@@ -77,13 +72,12 @@ function App() {
         {/* If logged in, render routes */}
         {isLoggedIn && (
           <Routes>
-            <Route path="/Dashboard" element={<Home />} />
             <Route path="/incident-report" element={<IncidentReport />} />
             <Route path="/scheduling" element={<ScheduleAssignment />} />
             <Route path="/patrol-logs" element={<PatrolLogs />} />
             <Route path="/Accounts" element={<Accounts />} />
             <Route path="/gis-mapping" element={<GISMapping />} />
-            <Route path="*" element={<Navigate to="/Dashboard" />} />
+            <Route path="*" element={<Navigate to="/incident-report" />} />
 
           </Routes>
         )}

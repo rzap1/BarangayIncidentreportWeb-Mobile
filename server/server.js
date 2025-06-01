@@ -55,7 +55,7 @@ function getGMT8Time() {
   return gmt8Time.toISOString().slice(0, 19).replace('T', ' ');
 }
 
-// Login route
+// Updated Login route 
 app.post("/login", (req, res) => {
   const { username, password } = req.body;
 
@@ -76,12 +76,38 @@ app.post("/login", (req, res) => {
 
     const user = results[0];
 
+    // Check if user status allows login
     if (user.STATUS === "Verified") {
-      return res.json({ success: true, message: "Login successful" });
+      // Check if user role is Admin - ONLY ADMINS CAN LOGIN
+      if (user.ROLE !== "Admin") {
+        return res.status(403).json({ 
+          error: "Access denied. Only Admin users are allowed to login." 
+        });
+      }
+
+      // Return success with user data (excluding password for security)
+      return res.json({ 
+        success: true, 
+        message: "Login successful",
+        user: {
+          id: user.ID,
+          username: user.USER,
+          name: user.NAME,
+          email: user.EMAIL,
+          address: user.ADDRESS,
+          role: user.ROLE,
+          status: user.STATUS,
+          image: user.IMAGE
+        }
+      });
     } else if (user.STATUS === "Pending") {
-      return res.status(403).json({ error: "Account status is Pending. Please verify your account." });
+      return res.status(403).json({ 
+        error: "Account status is Pending. Please verify your account." 
+      });
     } else {
-      return res.status(403).json({ error: `Account status "${user.STATUS}" does not allow login.` });
+      return res.status(403).json({ 
+        error: `Account status "${user.STATUS}" does not allow login.` 
+      });
     }
   });
 });
@@ -98,77 +124,137 @@ app.get("/api/users", (req, res) => {
   });
 });
 
-// Update user by ID with image upload support
+// Update user by ID with image upload support (for accounts management)
 app.put("/api/users/:id", upload.single("image"), (req, res) => {
   const userId = req.params.id;
   const { username, role, name, email, address, status, password } = req.body;
   const image = req.file ? req.file.filename : null;
 
-  if (!userId || !username || !name) {
-    return res.status(400).json({ success: false, message: "Missing required fields" });
+  if (!userId) {
+    return res.status(400).json({ success: false, message: "User ID is required" });
   }
 
-  // Start building the SQL query and parameters
-  let sql = "UPDATE users SET USER = ?, NAME = ?, EMAIL = ?, ADDRESS = ?";
-  let params = [username, name, email, address];
+  console.log('Updating user by ID:', {
+    userId,
+    data: { username, role, name, email, address, status, password: password ? '[PROVIDED]' : '[NOT PROVIDED]' },
+    hasImage: !!image
+  });
 
-  // Add optional fields if provided
-  if (role) {
-    sql += ", ROLE = ?";
-    params.push(role);
-  }
+  // Get current user data first
+  const getUserSql = "SELECT USER, NAME, EMAIL, ADDRESS, ROLE, STATUS, IMAGE FROM users WHERE ID = ?";
   
-  if (status) {
-    sql += ", STATUS = ?";
-    params.push(status);
-  }
-  
-  // Add password update if provided
-  if (password) {
-    sql += ", PASSWORD = ?";
-    params.push(password);
-  }
-  
-  // Add image update if provided
-  if (image) {
-    sql += ", IMAGE = ?";
-    params.push(image);
-    
-    // Delete old image if exists (optional)
-    db.query("SELECT IMAGE FROM users WHERE ID = ?", [userId], (err, results) => {
-      if (!err && results.length > 0 && results[0].IMAGE) {
-        const oldImage = results[0].IMAGE;
-        const imagePath = path.join(__dirname, "uploads", oldImage);
-        fs.unlink(imagePath, (err) => {
-          if (err && err.code !== 'ENOENT') {
-            console.error("Error deleting old profile image:", err);
-          }
-        });
-      }
-    });
-  }
- 
-  // Complete the SQL query
-  sql += " WHERE ID = ?";
-  params.push(userId);
-  
-  db.query(sql, params, (err, result) => {
+  db.query(getUserSql, [userId], (err, userResults) => {
     if (err) {
-      if (err.code === "ER_DUP_ENTRY") {
-        return res.status(409).json({ success: false, message: "Username already exists" });
-      }
-      console.error("❌ SQL update error:", err);
+      console.error("❌ SQL error fetching user:", err);
       return res.status(500).json({ success: false, message: "Database error" });
     }
 
-    if (result.affectedRows === 0) {
+    if (userResults.length === 0) {
       return res.status(404).json({ success: false, message: "User not found" });
     }
 
-    res.json({ 
-      success: true, 
-      message: "User updated successfully",
-      image: image ? image : undefined
+    const currentUser = userResults[0];
+    
+    // Build dynamic SQL query - only update provided fields
+    let sql = "UPDATE users SET ";
+    let params = [];
+    let updateFields = [];
+
+    // Add fields to update only if they are provided
+    if (username && username.trim()) {
+      updateFields.push("USER = ?");
+      params.push(username.trim());
+    }
+
+    if (name && name.trim()) {
+      updateFields.push("NAME = ?");
+      params.push(name.trim());
+    }
+
+    if (email && email.trim()) {
+      updateFields.push("EMAIL = ?");
+      params.push(email.trim());
+    }
+
+    if (address !== undefined) { // Allow empty string to clear address
+      updateFields.push("ADDRESS = ?");
+      params.push(address.trim());
+    }
+
+    if (role && role.trim()) {
+      updateFields.push("ROLE = ?");
+      params.push(role.trim());
+    }
+    
+    if (status && status.trim()) {
+      updateFields.push("STATUS = ?");
+      params.push(status.trim());
+    }
+    
+    if (password && password.trim()) {
+      updateFields.push("PASSWORD = ?");
+      params.push(password.trim());
+    }
+    
+    if (image) {
+      updateFields.push("IMAGE = ?");
+      params.push(image);
+      
+      // Delete old image if it exists
+      if (currentUser.IMAGE && currentUser.IMAGE.trim() !== '') {
+        const oldImagePath = path.join(__dirname, "uploads", currentUser.IMAGE);
+        fs.unlink(oldImagePath, (err) => {
+          if (err && err.code !== 'ENOENT') {
+            console.error("Error deleting old profile image:", err);
+          } else {
+            console.log("Old profile image deleted:", currentUser.IMAGE);
+          }
+        });
+      }
+    }
+
+    // Check if there are fields to update
+    if (updateFields.length === 0) {
+      return res.status(400).json({ success: false, message: "No fields to update" });
+    }
+
+    // Complete the SQL query
+    sql += updateFields.join(", ");
+    sql += " WHERE ID = ?";
+    params.push(userId);
+
+    console.log('SQL Query:', sql);
+    console.log('Parameters (excluding password):', params.map((p, i) => 
+      updateFields[i] && updateFields[i].includes('PASSWORD') ? '[HIDDEN]' : p
+    ));
+
+    // Execute the update
+    db.query(sql, params, (err, result) => {
+      if (err) {
+        if (err.code === "ER_DUP_ENTRY") {
+          return res.status(409).json({ success: false, message: "Username already exists" });
+        }
+        console.error("❌ SQL update error:", err);
+        return res.status(500).json({ success: false, message: "Database error" });
+      }
+
+      if (result.affectedRows === 0) {
+        return res.status(404).json({ success: false, message: "User not found or no changes made" });
+      }
+
+      console.log(`✅ User updated successfully. ID: ${userId}`);
+      
+      // Return success response with updated image filename if applicable
+      const response = { 
+        success: true, 
+        message: "User updated successfully"
+      };
+      
+      if (image) {
+        response.image = image;
+      }
+      
+      res.json(response);
     });
   });
 });
@@ -181,7 +267,7 @@ app.get("/api/user/:username", (req, res) => {
     return res.status(400).json({ error: "Username is required" });
   }
   
-  const sql = "SELECT ID, USER, NAME, EMAIL, ADDRESS, ROLE, STATUS, IMAGE FROM users WHERE USER = ?";
+  const sql = "SELECT ID, USER as USERNAME, NAME, EMAIL, ADDRESS, ROLE, STATUS, IMAGE FROM users WHERE USER = ?";
   
   db.query(sql, [username], (err, results) => {
     if (err) {
@@ -194,6 +280,134 @@ app.get("/api/user/:username", (req, res) => {
     }
     
     res.json(results[0]);
+  });
+});
+
+// Update user profile by username (for navbar profile modal)
+app.put("/api/user/:username", upload.single("image"), (req, res) => {
+  const username = req.params.username;
+  const { name, username: newUsername, password, address, email } = req.body;
+  const image = req.file ? req.file.filename : null;
+
+  if (!username) {
+    return res.status(400).json({ success: false, message: "Username is required" });
+  }
+
+  console.log('Updating user profile:', {
+    originalUsername: username,
+    newData: { name, newUsername, password: password ? '[PROVIDED]' : '[NOT PROVIDED]', address, email },
+    hasImage: !!image
+  });
+
+  // First, get the current user data to check what exists
+  const getUserSql = "SELECT ID, USER, NAME, EMAIL, ADDRESS, IMAGE FROM users WHERE USER = ?";
+  
+  db.query(getUserSql, [username], (err, userResults) => {
+    if (err) {
+      console.error("❌ SQL error fetching user:", err);
+      return res.status(500).json({ success: false, message: "Database error" });
+    }
+
+    if (userResults.length === 0) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    const currentUser = userResults[0];
+    
+    // Build dynamic SQL query - only update provided fields
+    let sql = "UPDATE users SET ";
+    let params = [];
+    let updateFields = [];
+
+    // Add fields to update only if they are provided
+    if (name && name.trim()) {
+      updateFields.push("NAME = ?");
+      params.push(name.trim());
+    }
+
+    if (newUsername && newUsername.trim()) {
+      updateFields.push("USER = ?");
+      params.push(newUsername.trim());
+    }
+
+    if (password && password.trim()) {
+      updateFields.push("PASSWORD = ?");
+      params.push(password.trim());
+    }
+
+    if (address !== undefined) { // Allow empty string to clear address
+      updateFields.push("ADDRESS = ?");
+      params.push(address.trim());
+    }
+
+    if (email && email.trim()) {
+      updateFields.push("EMAIL = ?");
+      params.push(email.trim());
+    }
+
+    if (image) {
+      updateFields.push("IMAGE = ?");
+      params.push(image);
+      
+      // Delete old image if it exists
+      if (currentUser.IMAGE && currentUser.IMAGE.trim() !== '') {
+        const oldImagePath = path.join(__dirname, "uploads", currentUser.IMAGE);
+        fs.unlink(oldImagePath, (err) => {
+          if (err && err.code !== 'ENOENT') {
+            console.error("Error deleting old profile image:", err);
+          } else {
+            console.log("Old profile image deleted:", currentUser.IMAGE);
+          }
+        });
+      }
+    }
+
+    // Check if there are fields to update
+    if (updateFields.length === 0) {
+      return res.status(400).json({ success: false, message: "No fields to update" });
+    }
+
+    // Complete the SQL query
+    sql += updateFields.join(", ");
+    sql += " WHERE USER = ?";
+    params.push(username);
+
+    console.log('SQL Query:', sql);
+    console.log('Parameters:', params);
+
+    // Execute the update
+    db.query(sql, params, (err, result) => {
+      if (err) {
+        if (err.code === "ER_DUP_ENTRY") {
+          return res.status(409).json({ success: false, message: "Username already exists" });
+        }
+        console.error("❌ SQL update error:", err);
+        return res.status(500).json({ success: false, message: "Database error" });
+      }
+
+      if (result.affectedRows === 0) {
+        return res.status(404).json({ success: false, message: "User not found or no changes made" });
+      }
+
+      console.log(`✅ User profile updated successfully for: ${username}`);
+      
+      // Return success response with updated image filename if applicable
+      const response = { 
+        success: true, 
+        message: "User profile updated successfully"
+      };
+      
+      if (image) {
+        response.image = image;
+      }
+      
+      // If username was changed, include the new username
+      if (newUsername && newUsername.trim()) {
+        response.newUsername = newUsername.trim();
+      }
+      
+      res.json(response);
+    });
   });
 });
 
