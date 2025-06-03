@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import Navbar from './Navbar';
 import './IncidentReport.css';
@@ -14,6 +14,11 @@ function IncidentReport() {
   const [availableTanods, setAvailableTanods] = useState([]);
   const [selectedTanod, setSelectedTanod] = useState('');
   
+  // Audio reference and previous incidents count for sound notification
+  const audioRef = useRef(null);
+  const previousIncidentsCountRef = useRef(0);
+  const isInitialLoadRef = useRef(true);
+  
   const getStatusColor = (status) => {
     switch (status) {
       case 'Under Review':
@@ -27,11 +32,116 @@ function IncidentReport() {
     }
   };
 
+// Replace your existing audio initialization and playAlertSound with this:
+
+// Remove the audio file initialization useEffect completely and replace with:
+useEffect(() => {
+  console.log('Emergency alert system ready');
+}, []);
+
+// Replace your playAlertSound function with this emergency pattern:
+const playAlertSound = async () => {
+  try {
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    
+    const createUrgentBeep = (frequency, startTime, duration, volume = 0.5) => {
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      
+      oscillator.frequency.setValueAtTime(frequency, startTime);
+      oscillator.type = 'square'; // Sharp, attention-grabbing sound
+      
+      gainNode.gain.setValueAtTime(0, startTime);
+      gainNode.gain.linearRampToValueAtTime(volume, startTime + 0.01);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+      
+      oscillator.start(startTime);
+      oscillator.stop(startTime + duration);
+    };
+    
+    const now = audioContext.currentTime;
+    
+    // 🚨 EMERGENCY ALERT PATTERN 🚨
+    // Fast triple beep + pause + lower warning tone + fast triple beep
+    createUrgentBeep(1200, now, 0.1);        // High beep 1
+    createUrgentBeep(1200, now + 0.15, 0.1); // High beep 2  
+    createUrgentBeep(1200, now + 0.3, 0.1);  // High beep 3
+    
+    createUrgentBeep(700, now + 0.6, 0.3);   // Lower warning tone
+    
+    createUrgentBeep(1200, now + 1.0, 0.1);  // High beep 4
+    createUrgentBeep(1200, now + 1.15, 0.1); // High beep 5
+    createUrgentBeep(1200, now + 1.3, 0.1);  // High beep 6
+    
+    console.log('🚨 EMERGENCY INCIDENT ALERT PLAYED 🚨');
+    
+    // Browser notification as backup
+    if ('Notification' in window && Notification.permission === 'granted') {
+      new Notification('🚨 NEW INCIDENT ALERT', {
+        body: 'Emergency: New incident report requires immediate attention!',
+        icon: '🚨',
+        tag: 'emergency-incident',
+        requireInteraction: true,
+        timestamp: Date.now()
+      });
+    }
+    
+  } catch (error) {
+    console.warn('Could not play emergency alert:', error);
+    
+    // Fallback: Browser notification only
+    if ('Notification' in window && Notification.permission === 'granted') {
+      new Notification('🚨 NEW INCIDENT ALERT', {
+        body: 'New incident report requires attention (audio failed)',
+        icon: '🚨',
+        tag: 'emergency-incident'
+      });
+    }
+    
+    // Visual fallback
+    const originalTitle = document.title;
+    document.title = '🚨 EMERGENCY INCIDENT!';
+    setTimeout(() => {
+      document.title = originalTitle;
+    }, 5000);
+  }
+};
+
+  // Request notification permission on component mount
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  }, []);
+
   useEffect(() => {
     const fetchData = () => {
       fetch("http://192.168.125.28:3001/api/incidents")
         .then(res => res.json())
-        .then(data => setIncidents(data))
+        .then(data => {
+          const currentCount = data.length;
+          
+          // Check if there are new incidents (only after initial load)
+          if (!isInitialLoadRef.current && currentCount > previousIncidentsCountRef.current) {
+            const newIncidentsCount = currentCount - previousIncidentsCountRef.current;
+            console.log(`${newIncidentsCount} new incident(s) detected!`);
+            playAlertSound();
+          }
+          
+          // Update the incidents state
+          setIncidents(data);
+          
+          // Update the previous count
+          previousIncidentsCountRef.current = currentCount;
+          
+          // Mark that initial load is complete
+          if (isInitialLoadRef.current) {
+            isInitialLoadRef.current = false;
+          }
+        })
         .catch(err => {
           console.error("Failed to fetch incidents:", err);
           setIncidents([]);
@@ -41,7 +151,7 @@ function IncidentReport() {
     // Initial fetch
     fetchData();
 
-    // Set interval for auto-refresh (e.g. every 30 seconds)
+    // Set interval for auto-refresh (e.g. every 3 seconds)
     const intervalId = setInterval(fetchData, 3000);
 
     // Clear interval on component unmount

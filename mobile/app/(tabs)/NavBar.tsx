@@ -1,4 +1,4 @@
-// components/NavBar.tsx - Updated with incident assignment notifications
+// components/NavBar.tsx - Fixed incident notification system
 import React, { useState, useRef, useEffect } from "react";
 import {
   View,
@@ -16,6 +16,7 @@ import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "./app";
 import axios from "axios";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const screenWidth = Dimensions.get("window").width;
 
@@ -56,7 +57,61 @@ const NavBar: React.FC<NavBarProps> = ({ username, userImage }) => {
   const [lastIncidentId, setLastIncidentId] = useState<number | null>(null);
   const [incidentNotifications, setIncidentNotifications] = useState<IncidentReport[]>([]);
   const [isIncidentInitialized, setIsIncidentInitialized] = useState(false);
+  const [unreadIncidentIds, setUnreadIncidentIds] = useState<Set<number>>(new Set());
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+
+  // Load saved state from AsyncStorage
+  useEffect(() => {
+    const loadSavedState = async () => {
+      if (!username) return;
+      
+      try {
+        const savedLogId = await AsyncStorage.getItem(`lastLogId_${username}`);
+        const savedIncidentId = await AsyncStorage.getItem(`lastIncidentId_${username}`);
+        const savedUnreadIds = await AsyncStorage.getItem(`unreadIncidentIds_${username}`);
+        
+        if (savedLogId) {
+          setLastLogId(parseInt(savedLogId));
+          setIsInitialized(true);
+        }
+        
+        if (savedIncidentId) {
+          setLastIncidentId(parseInt(savedIncidentId));
+          setIsIncidentInitialized(true);
+        }
+        
+        if (savedUnreadIds) {
+          const unreadIds: number[] = JSON.parse(savedUnreadIds);
+          setUnreadIncidentIds(new Set<number>(unreadIds));
+        }
+        
+        console.log('Loaded saved state - LogId:', savedLogId, 'IncidentId:', savedIncidentId, 'UnreadIds:', savedUnreadIds);
+      } catch (error) {
+        console.error('Error loading saved state:', error);
+      }
+    };
+    
+    loadSavedState();
+  }, [username]);
+
+  // Save state to AsyncStorage
+  const saveState = async (logId?: number, incidentId?: number, unreadIds?: Set<number>) => {
+    if (!username) return;
+    
+    try {
+      if (logId !== undefined) {
+        await AsyncStorage.setItem(`lastLogId_${username}`, logId.toString());
+      }
+      if (incidentId !== undefined) {
+        await AsyncStorage.setItem(`lastIncidentId_${username}`, incidentId.toString());
+      }
+      if (unreadIds !== undefined) {
+        await AsyncStorage.setItem(`unreadIncidentIds_${username}`, JSON.stringify([...unreadIds]));
+      }
+    } catch (error) {
+      console.error('Error saving state:', error);
+    }
+  };
 
   // Fetch user logs and check for new notifications
   const fetchUserLogs = async () => {
@@ -73,11 +128,12 @@ const NavBar: React.FC<NavBarProps> = ({ username, userImage }) => {
         
         console.log('Latest log ID:', latestLog.ID, 'Last known ID:', lastLogId);
         
-        // If this is the first time loading
-        if (!isInitialized) {
+        // If this is the first time loading and no saved state
+        if (!isInitialized && lastLogId === null) {
           setLastLogId(latestLog.ID);
           setNotifications(logs.slice(0, 5)); // Show last 5 logs
           setIsInitialized(true);
+          saveState(latestLog.ID, undefined, undefined);
           console.log('Initialized with latest log ID:', latestLog.ID);
         } else if (latestLog.ID > (lastLogId || 0)) {
           // New log detected - show notification
@@ -85,6 +141,7 @@ const NavBar: React.FC<NavBarProps> = ({ username, userImage }) => {
           setNotificationCount(prev => prev + newLogsCount);
           setLastLogId(latestLog.ID);
           setNotifications(logs.slice(0, 5)); // Update with latest logs
+          saveState(latestLog.ID, undefined, undefined);
           
           console.log('New log detected! New logs count:', newLogsCount);
           
@@ -123,44 +180,103 @@ const NavBar: React.FC<NavBarProps> = ({ username, userImage }) => {
         
         console.log('Latest incident ID:', latestIncident.id, 'Last known incident ID:', lastIncidentId);
         
-        // If this is the first time loading
-        if (!isIncidentInitialized) {
-          setLastIncidentId(latestIncident.id);
+        // If this is the first time loading and no saved state
+        if (!isIncidentInitialized && lastIncidentId === null) {
           setIncidentNotifications(incidents.slice(0, 5)); // Show last 5 incidents
           setIsIncidentInitialized(true);
-          console.log('Initialized with latest incident ID:', latestIncident.id);
-        } else if (latestIncident.id > (lastIncidentId || 0)) {
-          // New incident assignment detected - show notification
-          const newIncidentsCount = incidents.filter((incident: IncidentReport) => incident.id > (lastIncidentId || 0)).length;
-          setNotificationCount(prev => prev + newIncidentsCount);
+          
+          // Mark only UNRESOLVED incidents as unread for first-time users
+          const unresolvedIncidents = incidents.filter((incident: IncidentReport) => incident.status !== 'Resolved');
+          const newUnreadIds = new Set<number>(unresolvedIncidents.map((incident: IncidentReport) => incident.id));
+          setUnreadIncidentIds(newUnreadIds);
+          saveState(undefined, undefined, newUnreadIds);
+          
+          console.log('Initialized incident notifications with unread UNRESOLVED IDs:', [...newUnreadIds]);
+        } else if (isIncidentInitialized && latestIncident.id > (lastIncidentId || 0)) {
+          // New incident assignment detected
+          const newIncidents = incidents.filter((incident: IncidentReport) => incident.id > (lastIncidentId || 0));
+          
+          // Add new incident IDs to unread set ONLY if they are unresolved
+          const updatedUnreadIds = new Set(unreadIncidentIds);
+          newIncidents.forEach((incident: IncidentReport) => {
+            if (incident.status !== 'Resolved') {
+              updatedUnreadIds.add(incident.id);
+            }
+          });
+          
+          setUnreadIncidentIds(updatedUnreadIds);
           setLastIncidentId(latestIncident.id);
           setIncidentNotifications(incidents.slice(0, 5)); // Update with latest incidents
+          saveState(undefined, latestIncident.id, updatedUnreadIds);
           
-          console.log('New incident assignment detected! New incidents count:', newIncidentsCount);
+          // Only show alert for unresolved new incidents
+          const newUnresolvedIncidents = newIncidents.filter((incident: IncidentReport) => incident.status !== 'Resolved');
+          if (newUnresolvedIncidents.length > 0) {
+            console.log('New unresolved incident assignment detected! Count:', newUnresolvedIncidents.length);
+            
+            // Show alert for new incident assignment
+            const incidentMessage = getIncidentDisplayText(latestIncident);
+            Alert.alert(
+              "You've Been Assigned",
+              incidentMessage,
+              [
+                { text: "View All", onPress: () => handleNotificationPress() },
+                { text: "Dismiss", style: "cancel" }
+              ]
+            );
+          }
+        } else if (isIncidentInitialized) {
+          // Update notifications list even if no new incidents
+          setIncidentNotifications(incidents.slice(0, 5));
           
-          // Show alert for new incident assignment with your specified format
-          const incidentMessage = getIncidentDisplayText(latestIncident);
-          Alert.alert(
-            "You've Been Assigned",
-            incidentMessage,
-            [
-              { text: "View All", onPress: () => handleNotificationPress() },
-              { text: "Dismiss", style: "cancel" }
-            ]
+          // Remove resolved incidents from unread set AND incidents no longer assigned
+          const activeUnresolvedIncidentIds = new Set(
+            incidents
+              .filter((incident: IncidentReport) => incident.status !== 'Resolved')
+              .map((incident: IncidentReport) => incident.id)
           );
+          const updatedUnreadIds = new Set([...unreadIncidentIds].filter(id => activeUnresolvedIncidentIds.has(id)));
+          
+          if (updatedUnreadIds.size !== unreadIncidentIds.size) {
+            setUnreadIncidentIds(updatedUnreadIds);
+            saveState(undefined, undefined, updatedUnreadIds);
+          }
         }
       } else {
         console.log('No assigned incidents found for user:', username);
+        setIncidentNotifications([]);
+        // Clear unread incidents if no incidents are assigned
+        if (unreadIncidentIds.size > 0) {
+          const emptySet = new Set<number>();
+          setUnreadIncidentIds(emptySet);
+          saveState(undefined, undefined, emptySet);
+        }
       }
+      
+      // Update notification count based on unread UNRESOLVED incidents only
+      updateNotificationCount();
+      
     } catch (error) {
       console.error("Error fetching assigned incidents:", error);
       // Don't show error alerts for network issues during background polling
     }
   };
 
-  // Helper function to format incident display text with your specified format
+  // Update notification count based on unread UNRESOLVED incidents only
+  const updateNotificationCount = () => {
+    // Filter unread incidents to only include unresolved ones
+    const unreadUnresolvedIncidents = incidentNotifications.filter(incident => 
+      unreadIncidentIds.has(incident.id) && incident.status !== 'Resolved'
+    );
+    
+    const unreadCount = unreadUnresolvedIncidents.length;
+    setNotificationCount(unreadCount);
+    console.log('Updated notification count to:', unreadCount, 'unresolved incidents');
+  };
+
+  // Helper function to format incident display text - CHANGED "Header Type" to "Incident Type"
   const getIncidentDisplayText = (incident: IncidentReport) => {
-    return `Header Type: ${incident.type}
+    return `Incident Type: ${incident.type}
 Reported By: ${incident.reported_by}
 Location: ${incident.location}
 Status: ${incident.status}`;
@@ -188,7 +304,7 @@ Status: ${incident.status}`;
     return `${date} ${time}\n${action}${log.LOCATION ? `\nLocation: ${log.LOCATION}` : ''}`;
   };
 
-  // Function to handle incident resolution
+  // Function to handle incident resolution - UPDATED to include resolved_at
   const handleResolveIncident = async (incidentId: number) => {
     try {
       const response = await axios.put(`http://192.168.125.28:3001/api/incidents/${incidentId}/resolve`, {
@@ -196,13 +312,28 @@ Status: ${incident.status}`;
       });
 
       if (response.data.success) {
+        // Remove incident from unread set when resolved
+        const updatedUnreadIds = new Set(unreadIncidentIds);
+        updatedUnreadIds.delete(incidentId);
+        setUnreadIncidentIds(updatedUnreadIds);
+        saveState(undefined, undefined, updatedUnreadIds);
+        
+        // Update local incident notifications to mark as resolved
+        setIncidentNotifications(prev => 
+          prev.map(incident => 
+            incident.id === incidentId 
+              ? { ...incident, status: 'Resolved', resolved_by: username }
+              : incident
+          )
+        );
+        
         Alert.alert(
           "Success",
           "Incident has been marked as resolved.",
           [{ text: "OK" }]
         );
         
-        // Refresh incident notifications to remove resolved incident
+        // Refresh incident notifications
         fetchAssignedIncidents();
       } else {
         Alert.alert(
@@ -224,6 +355,14 @@ Status: ${incident.status}`;
   // Function to show incident details with resolve option
   const showIncidentDetails = (incident: IncidentReport) => {
     const incidentMessage = getIncidentDisplayText(incident);
+    
+    // Mark this incident as read when viewed
+    if (unreadIncidentIds.has(incident.id)) {
+      const updatedUnreadIds = new Set(unreadIncidentIds);
+      updatedUnreadIds.delete(incident.id);
+      setUnreadIncidentIds(updatedUnreadIds);
+      saveState(undefined, undefined, updatedUnreadIds);
+    }
     
     Alert.alert(
       "Incident Details",
@@ -251,7 +390,7 @@ Status: ${incident.status}`;
     );
   };
 
-  // Polling effect for both logs and incidents
+  // Polling effect for both logs and incidents - INCREASED frequency for better responsiveness
   useEffect(() => {
     if (username) {
       console.log('Setting up polling for user:', username);
@@ -261,7 +400,7 @@ Status: ${incident.status}`;
       const interval = setInterval(() => {
         fetchUserLogs();
         fetchAssignedIncidents(); // Poll for incident assignments
-      }, 15000); // Check every 15 seconds
+      }, 10000); // Check every 10 seconds (reduced from 15 seconds)
       
       return () => {
         console.log('Cleaning up polling interval');
@@ -269,6 +408,11 @@ Status: ${incident.status}`;
       };
     }
   }, [username, lastLogId, isInitialized, lastIncidentId, isIncidentInitialized]);
+
+  // Update notification count whenever unread incidents or incident notifications change
+  useEffect(() => {
+    updateNotificationCount();
+  }, [unreadIncidentIds, incidentNotifications]);
 
   useEffect(() => {
     Animated.timing(sidebarAnim, {
@@ -280,8 +424,17 @@ Status: ${incident.status}`;
 
   // Handle notification press to navigate to notifications page
   const handleNotificationPress = () => {
-    // Reset notification count when opened
-    setNotificationCount(0);
+    // Mark all current unresolved incidents as read when notification panel is opened
+    const unresolvedIncidentIds = incidentNotifications
+      .filter(incident => incident.status !== 'Resolved')
+      .map(incident => incident.id);
+    
+    const updatedUnreadIds = new Set([...unreadIncidentIds].filter(id => !unresolvedIncidentIds.includes(id)));
+    
+    if (updatedUnreadIds.size !== unreadIncidentIds.size) {
+      setUnreadIncidentIds(updatedUnreadIds);
+      saveState(undefined, undefined, updatedUnreadIds);
+    }
     
     // Navigate to notifications page with both logs and incidents
     navigation.navigate("Notifications", { 

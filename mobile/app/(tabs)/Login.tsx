@@ -15,7 +15,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type RootStackParamList = {
   Login: undefined;
-  Home: { username: string };
+  Home: { username: string; userData: any };
+  IncidentReport: { username: string };
   Register: undefined;
 };
 
@@ -39,24 +40,84 @@ const Login: React.FC = () => {
         const response = await axios.post("http://192.168.125.28:3001/login", {
           username,
           password,
+          clientType: 'mobile' // Specify this is a mobile client request
         });
 
         if (response.data.success) {
-          navigation.navigate("Home", { username });
+          const userData = response.data.user;
+          
+          // Verify user role is allowed for mobile (Tanod or Resident)
+          if (!['Tanod', 'Resident'].includes(userData.role)) {
+            Alert.alert(
+              "Access Denied", 
+              "Only Tanod and Resident users are allowed to access the mobile application."
+            );
+            setLoading(false);
+            return;
+          }
+
+          // Store user data in AsyncStorage
+          try {
+            await AsyncStorage.multiSet([
+              ['username', username],
+              ['userRole', userData.role],
+              ['userId', userData.id.toString()],
+              ['userName', userData.name],
+              ['userEmail', userData.email],
+              ['userAddress', userData.address || ''],
+              ['userStatus', userData.status],
+              ['userImage', userData.image || '']
+            ]);
+
+            console.log('Login successful, stored user data:', {
+              username: username,
+              userRole: userData.role,
+              userId: userData.id,
+              userName: userData.name
+            });
+
+            // Role-based navigation
+            if (userData.role === 'Resident') {
+              // Redirect Residents to IncidentReport
+              navigation.navigate("IncidentReport", { username });
+            } else if (userData.role === 'Tanod') {
+              // Redirect Tanod to Home
+              navigation.navigate("Home", { 
+                username, 
+                userData: userData 
+              });
+            }
+
+          } catch (storageError) {
+            console.error('Error storing user data:', storageError);
+            Alert.alert("Warning", "Login successful but failed to save user data locally.");
+            
+            // Still perform role-based navigation even if storage fails
+            if (userData.role === 'Resident') {
+              navigation.navigate("IncidentReport", { username });
+            } else if (userData.role === 'Tanod') {
+              navigation.navigate("Home", { 
+                username, 
+                userData: userData 
+              });
+            }
+          }
         }
       } catch (error: any) {
+        console.error('Login error:', error);
+        
         if (error.response?.status === 401) {
           Alert.alert("Login Failed", "Invalid username or password");
         } else if (error.response?.status === 403) {
-          Alert.alert("Login Failed", error.response.data.error);
+          Alert.alert("Access Denied", error.response.data.error);
+        } else if (error.response?.status === 400) {
+          Alert.alert("Invalid Request", error.response.data.error || "Please check your input");
         } else {
-          Alert.alert("Error", "Something went wrong. Try again later.");
-          console.error(error);
+          Alert.alert("Error", "Something went wrong. Please try again later.");
         }
+      } finally {
+        setLoading(false);
       }
- finally {
-      setLoading(false);
-    }
   };
 
 return (
@@ -73,20 +134,20 @@ return (
         </View>
         <Text style={styles.appTitle}>PatrolNet</Text>
         <Text style={styles.appSubtitle}>Emergency Response System</Text>
-        <Text style={styles.welcomeText}>Secure Access</Text>
+        <Text style={styles.welcomeText}>Mobile Access - Tanod & Residents</Text>
       </View>
 
       {/* Form Section */}
       <View style={styles.formContainer}>
         <View style={styles.inputGroup}>
-          <Text style={styles.inputLabel}>OFFICER ID / USERNAME</Text>
+          <Text style={styles.inputLabel}>USERNAME</Text>
           <View style={styles.inputWrapper}>
-            <Text style={styles.inputIcon}>👮‍♂️</Text>
+            <Text style={styles.inputIcon}>👤</Text>
             <TextInput
               style={styles.inputBox}
               value={username}
               onChangeText={setUsername}
-              placeholder="Enter your credentials"
+              placeholder="Enter your username"
               placeholderTextColor="#94A3B8"
               autoCapitalize="none"
             />
@@ -94,14 +155,14 @@ return (
         </View>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.inputLabel}>SECURE PASSWORD</Text>
+          <Text style={styles.inputLabel}>PASSWORD</Text>
           <View style={styles.inputWrapper}>
             <Text style={styles.inputIcon}>🔐</Text>
             <TextInput
               style={styles.inputBox}
               value={password}
               onChangeText={setPassword}
-              placeholder="Enter secure password"
+              placeholder="Enter your password"
               placeholderTextColor="#94A3B8"
               secureTextEntry
             />
@@ -121,7 +182,7 @@ return (
             </View>
           ) : (
             <View style={styles.buttonContent}>
-              <Text style={styles.loginButtonText}>ACCESS SYSTEM</Text>
+              <Text style={styles.loginButtonText}>LOGIN</Text>
               <Text style={styles.buttonArrow}>→</Text>
             </View>
           )}
@@ -135,21 +196,21 @@ return (
 
         {/* Footer */}
         <View style={styles.footerSection}>
-          <Text style={styles.footerLabel}>Need credentials?</Text>
+          <Text style={styles.footerLabel}>Need an account?</Text>
           <TouchableOpacity 
             onPress={() => navigation.replace("Register")}
             style={styles.createAccountButton}
             activeOpacity={0.7}
           >
-            <Text style={styles.createAccountText}>REQUEST ACCESS</Text>
+            <Text style={styles.createAccountText}>REGISTER</Text>
           </TouchableOpacity>
         </View>
       </View>
 
       {/* Security Badge */}
       <View style={styles.securityBadge}>
-        <Text style={styles.securityIcon}>🛡️</Text>
-        <Text style={styles.securityText}>MILITARY-GRADE ENCRYPTION</Text>
+        <Text style={styles.securityIcon}>📱</Text>
+        <Text style={styles.securityText}>MOBILE SECURE ACCESS</Text>
       </View>
 
       {/* Status Indicator */}
@@ -241,7 +302,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   welcomeText: {
-    fontSize: 18,
+    fontSize: 16,
     color: "#E2E8F0",
     fontWeight: "600",
     marginBottom: 4,

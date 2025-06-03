@@ -55,12 +55,19 @@ function getGMT8Time() {
   return gmt8Time.toISOString().slice(0, 19).replace('T', ' ');
 }
 
-// Updated Login route 
+// Updated Login route with client-based role restrictions
 app.post("/login", (req, res) => {
-  const { username, password } = req.body;
+  const { username, password, clientType } = req.body;
 
   if (!username || !password) {
     return res.status(400).json({ error: "Username and password are required" });
+  }
+
+  // Validate clientType parameter
+  if (!clientType || !['web', 'mobile'].includes(clientType)) {
+    return res.status(400).json({ 
+      error: "Client type is required and must be 'web' or 'mobile'" 
+    });
   }
 
   const sql = "SELECT * FROM users WHERE USER = ? AND PASSWORD = ?";
@@ -77,38 +84,54 @@ app.post("/login", (req, res) => {
     const user = results[0];
 
     // Check if user status allows login
-    if (user.STATUS === "Verified") {
-      // Check if user role is Admin - ONLY ADMINS CAN LOGIN
-      if (user.ROLE !== "Admin") {
+    if (user.STATUS !== "Verified") {
+      if (user.STATUS === "Pending") {
         return res.status(403).json({ 
-          error: "Access denied. Only Admin users are allowed to login." 
+          error: "Account status is Pending. Please verify your account." 
+        });
+      } else {
+        return res.status(403).json({ 
+          error: `Account status "${user.STATUS}" does not allow login.` 
         });
       }
+    }
 
-      // Return success with user data (excluding password for security)
-      return res.json({ 
-        success: true, 
-        message: "Login successful",
-        user: {
-          id: user.ID,
-          username: user.USER,
-          name: user.NAME,
-          email: user.EMAIL,
-          address: user.ADDRESS,
-          role: user.ROLE,
-          status: user.STATUS,
-          image: user.IMAGE
-        }
-      });
-    } else if (user.STATUS === "Pending") {
+    // Apply role restrictions based on client type
+    let allowedRoles = [];
+    let clientName = "";
+
+    if (clientType === 'web') {
+      // ReactJS - Only Admin allowed
+      allowedRoles = ['Admin'];
+      clientName = "web application";
+    } else if (clientType === 'mobile') {
+      // React Native - Only Tanod and Resident allowed
+      allowedRoles = ['Tanod', 'Resident'];
+      clientName = "mobile application";
+    }
+
+    // Check if user role is allowed for this client
+    if (!allowedRoles.includes(user.ROLE)) {
       return res.status(403).json({ 
-        error: "Account status is Pending. Please verify your account." 
-      });
-    } else {
-      return res.status(403).json({ 
-        error: `Account status "${user.STATUS}" does not allow login.` 
+        error: `Access denied. Only ${allowedRoles.join(' and ')} users are allowed to access the ${clientName}.` 
       });
     }
+
+    // Return success with user data (excluding password for security)
+    return res.json({ 
+      success: true, 
+      message: "Login successful",
+      user: {
+        id: user.ID,
+        username: user.USER,
+        name: user.NAME,
+        email: user.EMAIL,
+        address: user.ADDRESS,
+        role: user.ROLE,
+        status: user.STATUS,
+        image: user.IMAGE
+      }
+    });
   });
 });
 
@@ -552,11 +575,16 @@ app.get("/api/incidents/assigned/:username", (req, res) => {
     return res.status(400).json({ error: "Username is required" });
   }
   
+  // Fetch non-resolved incidents AND resolved incidents from the last 7 days
   const sql = `
     SELECT id, incident_type as type, location, status, datetime as created_at, 
-           image, reported_by, latitude, longitude, assigned
+           image, reported_by, latitude, longitude, assigned, resolved_by, resolved_at
     FROM incident_report 
     WHERE assigned = ? 
+    AND (
+      status != 'Resolved' 
+      OR (status = 'Resolved' AND resolved_at >= DATE_SUB(NOW(), INTERVAL 7 DAY))
+    )
     ORDER BY datetime DESC
   `;
   
@@ -566,7 +594,7 @@ app.get("/api/incidents/assigned/:username", (req, res) => {
       return res.status(500).json({ error: "Failed to fetch assigned incidents" });
     }
     
-    console.log(`Fetched ${results.length} assigned incidents for ${username}`);
+    console.log(`Fetched ${results.length} assigned incidents for ${username} (including resolved within 7 days)`);
     res.json(results);
   });
 });
@@ -583,10 +611,11 @@ app.put("/api/incidents/:id/resolve", (req, res) => {
     });
   }
   
-  // Simple update - only change status to 'Resolved'
-  const sql = `UPDATE incident_report SET status = 'Resolved' WHERE id = ?`;
+  // Update with current GMT+8 timestamp for resolved_at
+  const resolvedAt = getGMT8Time();
+  const sql = `UPDATE incident_report SET status = 'Resolved', resolved_at = ?, resolved_by = ? WHERE id = ?`;
   
-  db.query(sql, [incidentId], (err, result) => {
+  db.query(sql, [resolvedAt, resolved_by || null, incidentId], (err, result) => {
     if (err) {
       console.error("❌ SQL update error:", err);
       return res.status(500).json({ 
@@ -602,7 +631,7 @@ app.put("/api/incidents/:id/resolve", (req, res) => {
       });
     }
     
-    // Log the resolution action (simplified)
+    // Log the resolution action
     if (resolved_by) {
       const logSql = `
         INSERT INTO logs_patrol (USER, TIME, ACTION, LOCATION)
@@ -632,7 +661,9 @@ app.put("/api/incidents/:id/resolve", (req, res) => {
       success: true, 
       message: "Incident marked as resolved successfully",
       incident_id: incidentId,
-      status: 'Resolved'
+      status: 'Resolved',
+      resolved_at: resolvedAt,
+      resolved_by: resolved_by || null
     });
   });
 });
@@ -703,6 +734,94 @@ app.get("/api/incidents/new-assignments/:username", (req, res) => {
       new_assignments: results,
       count: results.length
     });
+  });
+});
+
+// NEW: API endpoint to get all incidents (including resolved) for history view
+app.get("/api/incidents/history/:username", (req, res) => {
+  const username = req.params.username;
+  
+  if (!username) {
+    return res.status(400).json({ error: "Username is required" });
+  }
+  
+  // Fetch all incidents assigned to user, including resolved ones
+  const sql = `
+    SELECT id, incident_type as type, location, status, datetime as created_at, 
+           image, reported_by, latitude, longitude, assigned, resolved_by, resolved_at
+    FROM incident_report 
+    WHERE assigned = ?
+    ORDER BY datetime DESC
+  `;
+  
+  db.query(sql, [username], (err, results) => {
+    if (err) {
+      console.error("❌ SQL error fetching incident history:", err);
+      return res.status(500).json({ error: "Failed to fetch incident history" });
+    }
+    
+    console.log(`Fetched ${results.length} total incidents (including resolved) for ${username}`);
+    res.json(results);
+  });
+});
+
+// API endpoint to fetch incidents reported by a specific user
+app.get("/api/incidents/reported/:username", (req, res) => {
+  const username = req.params.username;
+  
+  if (!username) {
+    return res.status(400).json({ error: "Username is required" });
+  }
+  
+  // Fetch all incidents reported by this user, including resolved ones from the last 7 days
+  const sql = `
+    SELECT id, incident_type as type, location, status, datetime as created_at, 
+           image, reported_by, latitude, longitude, assigned, resolved_by, resolved_at
+    FROM incident_report 
+    WHERE reported_by = ? 
+    AND (
+      status != 'Resolved' 
+      OR (status = 'Resolved' AND resolved_at >= DATE_SUB(NOW(), INTERVAL 7 DAY))
+    )
+    ORDER BY datetime DESC
+  `;
+  
+  db.query(sql, [username], (err, results) => {
+    if (err) {
+      console.error("❌ SQL error fetching user reports:", err);
+      return res.status(500).json({ error: "Failed to fetch user reports" });
+    }
+    
+    console.log(`Fetched ${results.length} reports made by ${username} (including resolved within 7 days)`);
+    res.json(results);
+  });
+});
+
+// API endpoint to get all user reports (including resolved) for history view
+app.get("/api/incidents/reports-history/:username", (req, res) => {
+  const username = req.params.username;
+  
+  if (!username) {
+    return res.status(400).json({ error: "Username is required" });
+  }
+  
+  // Fetch all incidents reported by user, including resolved ones
+  const sql = `
+    SELECT id, incident_type as type, location, status, datetime as created_at, 
+           image, reported_by, latitude, longitude, assigned, resolved_by, resolved_at
+    FROM incident_report 
+    WHERE reported_by = ?
+    ORDER BY datetime DESC
+  `;
+  
+  db.query(sql, [username], (err, results) => {
+    if (err) {
+      console.error("❌ SQL error fetching user report history:", err);
+      return res.status(500).json({ error: "Failed to fetch user report history" });
+    }
+    
+    console.log(`Fetched ${results.length} total reports (including resolved) made by ${username}`);
+    res.json(results);
   });
 });
 

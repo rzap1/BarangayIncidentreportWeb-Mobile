@@ -23,50 +23,51 @@ const Login = ({ setShowLogin, onLoginSuccess }) => {
       const res = await axios.post("http://192.168.125.28:3001/login", {
         username,
         password,
+        clientType: 'web' // Specify this is a web client request
       });
 
       setMessage(res.data.message);
 
       if (res.data.success) {
-        // The backend already checks for Admin role, but we can double-check here
+        // The backend already checks for Admin role for web clients
         const userRole = res.data.user?.role || res.data.user?.ROLE;
         
+        // Double-check for security (though backend already validates this)
         if (userRole !== 'Admin') {
           setMessage("Access denied. Only Admin users are allowed to login.");
           setLoading(false);
           return;
         }
 
-        // Store user data in localStorage
-        localStorage.setItem('username', username);
-        localStorage.setItem('userRole', userRole);
-        localStorage.setItem('userId', res.data.user.id);
-        localStorage.setItem('userName', res.data.user.name);
-        localStorage.setItem('userEmail', res.data.user.email);
-        
-        // Store the IMAGE if it's returned
-        if (res.data.user.image) {
-          localStorage.setItem('userImage', res.data.user.image);
-        }
-        
-        // Store token if returned (for future use)
-        if (res.data.token) {
-          localStorage.setItem('token', res.data.token);
-        }
+        // Store user data in memory variables instead of localStorage
+        // Note: Using localStorage is not recommended in Claude.ai artifacts
+        const userData = {
+          username: username,
+          userRole: userRole,
+          userId: res.data.user.id,
+          userName: res.data.user.name,
+          userEmail: res.data.user.email,
+          userAddress: res.data.user.address,
+          userStatus: res.data.user.status,
+          userImage: res.data.user.image
+        };
 
-        console.log('Login successful, stored data:', {
-          username: localStorage.getItem('username'),
-          userRole: localStorage.getItem('userRole'),
-          userId: localStorage.getItem('userId'),
-          userName: localStorage.getItem('userName'),
-          userImage: localStorage.getItem('userImage')
-        });
+        console.log('Login successful, user data:', userData);
 
-        // Trigger login success in App.js
-        onLoginSuccess();
+        // Pass user data to parent component
+        onLoginSuccess(userData);
       }
     } catch (err) {
-      setMessage(err.response?.data?.error || "Login failed");
+      // Handle different error scenarios
+      if (err.response?.status === 403) {
+        setMessage(err.response.data.error || "Access denied");
+      } else if (err.response?.status === 401) {
+        setMessage("Invalid username or password");
+      } else if (err.response?.status === 400) {
+        setMessage(err.response.data.error || "Please check your input");
+      } else {
+        setMessage(err.response?.data?.error || "Login failed. Please try again.");
+      }
     } finally {
       setLoading(false);
     }

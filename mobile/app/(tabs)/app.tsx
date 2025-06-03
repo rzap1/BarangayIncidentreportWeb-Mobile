@@ -26,7 +26,11 @@ export type RootStackParamList = {
   Login: undefined;
   Register: undefined;
   Home: { username: string };
-  IncidentReport: { username: string };
+  IncidentReport: { 
+    username: string;
+    incidentId?: number; // Add optional parameter for viewing existing incidents
+    isViewMode?: boolean; // Add optional parameter to determine if in view mode
+  };
   Profile: { username: string };
   TimeIn: { username: string };
   Notifications: { 

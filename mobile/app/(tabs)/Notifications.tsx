@@ -1,3 +1,4 @@
+
 // Notifications.tsx - Displays user logs separated into new and viewed notifications
 import React, { useState, useEffect } from "react";
 import {
@@ -43,6 +44,8 @@ interface IncidentReport {
   status: string;
   assigned: string;
   created_at: string;
+  resolved_by?: string;
+  resolved_at?: string;
 }
 
 const Notifications: React.FC = () => {
@@ -54,12 +57,48 @@ const Notifications: React.FC = () => {
   const navigation = useNavigation<NotificationsNavigationProp>();
   const route = useRoute<NotificationsRouteProp>();
   const { username, incidentNotifications = [] } = route.params;
+  const [userRole, setUserRole] = useState<string>('');
 
-  const [incidents, setIncidents] = useState<IncidentReport[]>([]);
-  const [viewedIncidents, setViewedIncidents] = useState<number[]>([]);
+  // Separate assigned and reported incidents
+  const [assignedIncidents, setAssignedIncidents] = useState<IncidentReport[]>([]);
+  const [reportedIncidents, setReportedIncidents] = useState<IncidentReport[]>([]);
+  const [viewedAssignedIncidents, setViewedAssignedIncidents] = useState<number[]>([]);
+  const [viewedReportedIncidents, setViewedReportedIncidents] = useState<number[]>([]);
 
-  const newIncidents = incidents.filter(incident => !viewedIncidents.includes(incident.id));
-  const viewedIncidentsList = incidents.filter(incident => viewedIncidents.includes(incident.id));
+  // Helper function to categorize incidents
+  const categorizeIncidents = (incidents: IncidentReport[], viewedIds: number[]) => {
+    const unresolved = incidents.filter(incident => incident.status !== 'Resolved');
+    const resolved = incidents.filter(incident => incident.status === 'Resolved');
+    
+    const newIncidents = unresolved.filter(incident => 
+      !viewedIds.includes(incident.id) && 
+      incident.resolved_by !== username
+    );
+    
+    const viewedUnresolved = unresolved.filter(incident => 
+      viewedIds.includes(incident.id) || 
+      incident.resolved_by === username
+    );
+    
+    return { newIncidents, viewedUnresolved, resolved };
+  };
+
+  // Categorize assigned incidents
+  const assignedCategorized = categorizeIncidents(assignedIncidents, viewedAssignedIncidents);
+  
+  // Categorize reported incidents
+  const reportedCategorized = categorizeIncidents(reportedIncidents, viewedReportedIncidents);
+
+  const loadUserRole = async () => {
+  try {
+    const role = await AsyncStorage.getItem('userRole');
+    if (role) {
+      setUserRole(role);
+    }
+  } catch (error) {
+    console.error("Error loading user role:", error);
+  }
+};
 
   // Load viewed notifications from AsyncStorage
   const loadViewedNotifications = async () => {
@@ -97,18 +136,109 @@ const Notifications: React.FC = () => {
     }
   };
 
-  // Modify the loadData function in useEffect
+  // Load viewed assigned incidents
+  const loadViewedAssignedIncidents = async () => {
+    try {
+      const viewed = await AsyncStorage.getItem(`viewed_assigned_incidents_${username}`);
+      if (viewed) {
+        setViewedAssignedIncidents(JSON.parse(viewed));
+      }
+    } catch (error) {
+      console.error("Error loading viewed assigned incidents:", error);
+    }
+  };
+
+  // Load viewed reported incidents
+  const loadViewedReportedIncidents = async () => {
+    try {
+      const viewed = await AsyncStorage.getItem(`viewed_reported_incidents_${username}`);
+      if (viewed) {
+        setViewedReportedIncidents(JSON.parse(viewed));
+      }
+    } catch (error) {
+      console.error("Error loading viewed reported incidents:", error);
+    }
+  };
+
+  // Save viewed assigned incidents
+  const saveViewedAssignedIncidents = async (viewedIds: number[]) => {
+    try {
+      await AsyncStorage.setItem(
+        `viewed_assigned_incidents_${username}`,
+        JSON.stringify(viewedIds)
+      );
+    } catch (error) {
+      console.error("Error saving viewed assigned incidents:", error);
+    }
+  };
+
+  // Save viewed reported incidents
+  const saveViewedReportedIncidents = async (viewedIds: number[]) => {
+    try {
+      await AsyncStorage.setItem(
+        `viewed_reported_incidents_${username}`,
+        JSON.stringify(viewedIds)
+      );
+    } catch (error) {
+      console.error("Error saving viewed reported incidents:", error);
+    }
+  };
+
+  // Fetch assigned incidents
+  const fetchAssignedIncidents = async () => {
+    try {
+      const response = await axios.get(`http://192.168.125.28:3001/api/incidents/assigned/${username}`);
+      const fetchedIncidents = response.data || [];
+      setAssignedIncidents(fetchedIncidents);
+      
+      // Auto-mark incidents resolved by current user as viewed
+      const resolvedByCurrentUser = fetchedIncidents
+        .filter((incident: IncidentReport) => incident.resolved_by === username)
+        .map((incident: IncidentReport) => incident.id);
+      
+      if (resolvedByCurrentUser.length > 0) {
+        const currentViewed = await AsyncStorage.getItem(`viewed_assigned_incidents_${username}`);
+        const existingViewed = currentViewed ? JSON.parse(currentViewed) : [];
+        const newViewed = [...new Set([...existingViewed, ...resolvedByCurrentUser])];
+        
+        setViewedAssignedIncidents(newViewed);
+        await saveViewedAssignedIncidents(newViewed);
+      }
+      
+      console.log(`Fetched ${fetchedIncidents.length} assigned incidents for ${username}`);
+    } catch (error) {
+      console.error("Error fetching assigned incidents:", error);
+    }
+  };
+
+  // Fetch reported incidents
+  const fetchReportedIncidents = async () => {
+    try {
+      const response = await axios.get(`http://192.168.125.28:3001/api/incidents/reported/${username}`);
+      const fetchedIncidents = response.data || [];
+      setReportedIncidents(fetchedIncidents);
+      
+      console.log(`Fetched ${fetchedIncidents.length} reported incidents for ${username}`);
+    } catch (error) {
+      console.error("Error fetching reported incidents:", error);
+    }
+  };
+
+  // Load data on component mount
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
       await loadViewedNotifications();
-      await loadViewedIncidents(); // Load viewed incidents
+      await loadViewedAssignedIncidents();
+      await loadViewedReportedIncidents();
+      await loadUserRole();
       await fetchLogs();
-      await fetchIncidents(); // Fetch incidents
+      await fetchAssignedIncidents();
+      await fetchReportedIncidents();
       
       // Set incidents from navigation params if available
       if (incidentNotifications.length > 0) {
-        setIncidents(incidentNotifications);
+        setAssignedIncidents(incidentNotifications);
       }
   
       setLoading(false);
@@ -116,12 +246,21 @@ const Notifications: React.FC = () => {
     loadData();
   }, [username]);
 
-  // Add function to mark incident as viewed
-  const markIncidentAsViewed = async (incidentId: number) => {
-    if (!viewedIncidents.includes(incidentId)) {
-      const newViewedIds = [...viewedIncidents, incidentId];
-      setViewedIncidents(newViewedIds);
-      await saveViewedIncidents(newViewedIds);
+  // Mark assigned incident as viewed
+  const markAssignedIncidentAsViewed = async (incidentId: number) => {
+    if (!viewedAssignedIncidents.includes(incidentId)) {
+      const newViewedIds = [...viewedAssignedIncidents, incidentId];
+      setViewedAssignedIncidents(newViewedIds);
+      await saveViewedAssignedIncidents(newViewedIds);
+    }
+  };
+
+  // Mark reported incident as viewed
+  const markReportedIncidentAsViewed = async (incidentId: number) => {
+    if (!viewedReportedIncidents.includes(incidentId)) {
+      const newViewedIds = [...viewedReportedIncidents, incidentId];
+      setViewedReportedIncidents(newViewedIds);
+      await saveViewedReportedIncidents(newViewedIds);
     }
   };
 
@@ -129,7 +268,8 @@ const Notifications: React.FC = () => {
   const onRefresh = async () => {
     setRefreshing(true);
     await fetchLogs();
-    await fetchIncidents(); // Refresh incidents too
+    await fetchAssignedIncidents();
+    await fetchReportedIncidents();
     setRefreshing(false);
   };
 
@@ -145,16 +285,19 @@ const Notifications: React.FC = () => {
   // Mark all notifications as viewed
   const markAllAsViewed = async () => {
     const allLogIds = logs.map(log => log.ID);
-    const allIncidentIds = incidents.map(incident => incident.id);
+    const allAssignedIds = assignedIncidents.map(incident => incident.id);
+    const allReportedIds = reportedIncidents.map(incident => incident.id);
     
     setViewedNotifications(allLogIds);
-    setViewedIncidents(allIncidentIds);
+    setViewedAssignedIncidents(allAssignedIds);
+    setViewedReportedIncidents(allReportedIds);
     
     await saveViewedNotifications(allLogIds);
-    await saveViewedIncidents(allIncidentIds);
+    await saveViewedAssignedIncidents(allAssignedIds);
+    await saveViewedReportedIncidents(allReportedIds);
   };
 
-  // Modify the clearAllViewed function to include incidents
+  // Clear all viewed
   const clearAllViewed = async () => {
     Alert.alert(
       "Clear Viewed",
@@ -165,82 +308,115 @@ const Notifications: React.FC = () => {
           text: "Clear",
           onPress: async () => {
             setViewedNotifications([]);
-            setViewedIncidents([]);
+            setViewedAssignedIncidents([]);
+            setViewedReportedIncidents([]);
             await saveViewedNotifications([]);
-            await saveViewedIncidents([]);
+            await saveViewedAssignedIncidents([]);
+            await saveViewedReportedIncidents([]);
           },
         },
       ]
     );
   };
 
-  const loadViewedIncidents = async () => {
+  // Function to resolve incident (for assigned incidents only)
+  const resolveIncident = async (incidentId: number) => {
     try {
-      const viewed = await AsyncStorage.getItem(`viewed_incidents_${username}`);
-      if (viewed) {
-        setViewedIncidents(JSON.parse(viewed));
-      }
-    } catch (error) {
-      console.error("Error loading viewed incidents:", error);
-    }
-  };
-
-  // Add function to save viewed incidents to AsyncStorage
-  const saveViewedIncidents = async (viewedIds: number[]) => {
-    try {
-      await AsyncStorage.setItem(
-        `viewed_incidents_${username}`,
-        JSON.stringify(viewedIds)
+      await axios.put(`http://192.168.125.28:3001/api/incidents/${incidentId}/resolve`, {
+        resolved_by: username
+      });
+      
+      // Update local state for assigned incidents
+      setAssignedIncidents(prevIncidents => 
+        prevIncidents.map(incident => 
+          incident.id === incidentId 
+            ? { ...incident, status: 'Resolved', resolved_by: username }
+            : incident
+        )
       );
+      
+      // Auto-mark as viewed since current user resolved it
+      await markAssignedIncidentAsViewed(incidentId);
+      
+      Alert.alert("Success", "Incident marked as resolved");
     } catch (error) {
-      console.error("Error saving viewed incidents:", error);
+      console.error("Error resolving incident:", error);
+      Alert.alert("Error", "Failed to resolve incident");
     }
   };
 
-  // Add function to fetch incidents from API
-  const fetchIncidents = async () => {
-    try {
-      const response = await axios.get(`http://192.168.125.28:3001/api/incidents/assigned/${username}`);
-      setIncidents(response.data || []);
-      console.log(`Fetched ${response.data?.length || 0} assigned incidents for ${username}`);
-    } catch (error) {
-      console.error("Error fetching incidents:", error);
-      // Don't show error for incident fetch failures
-    }
-  };
-
- // Function to resolve incident (UPDATED VERSION)
-const resolveIncident = async (incidentId: number) => {
-  try {
-    // Pass the username to track who resolved it
-    await axios.put(`http://192.168.125.28:3001/api/incidents/${incidentId}/resolve`, {
-      resolved_by: username  // Add this to track who resolved it
-    });
-    
-    // Update local state
-    setIncidents(prevIncidents => 
-      prevIncidents.map(incident => 
-        incident.id === incidentId 
-          ? { ...incident, status: 'Resolved' }
-          : incident
-      )
-    );
-    
-    Alert.alert("Success", "Incident marked as resolved");
-  } catch (error) {
-    console.error("Error resolving incident:", error);
-    Alert.alert("Error", "Failed to resolve incident");
-  }
-};
-
-  // Add function to show incident details with resolve option
-const showIncidentDetails = (incident: IncidentReport) => {
-  const incidentDetails = `Header Type: ${incident.type}
+  // Show incident details for assigned incidents (with resolve option)
+  const showAssignedIncidentDetails = (incident: IncidentReport) => {
+    const incidentDetails = `Incident Type: ${incident.type}
 Reported By: ${incident.reported_by}
 Location: ${incident.location}
-Status: ${incident.status}`;
+Status: ${incident.status}${incident.resolved_by ? `\nResolved By: ${incident.resolved_by}` : ''}`;
 
-  // Define buttons with proper typing
+    const buttons: Array<{
+      text: string;
+      style?: "default" | "cancel" | "destructive";
+      onPress?: () => void;
+    }> = [
+      { text: "Cancel", style: "cancel" }
+    ];
+
+    // Only show resolve button if incident is not already resolved
+    if (incident.status !== 'Resolved') {
+      buttons.push({
+        text: "Mark as Resolved",
+        onPress: () => {
+          Alert.alert(
+            "Confirm Resolution",
+            "Are you sure you want to mark this incident as resolved?",
+            [
+              { text: "Cancel", style: "cancel" },
+              {
+                text: "Confirm",
+                onPress: () => resolveIncident(incident.id),
+              },
+            ]
+          );
+        },
+      });
+    }
+
+    Alert.alert("Assigned Incident", incidentDetails, buttons);
+  };
+
+      const resolveReportedIncident = async (incidentId: number) => {
+        try {
+          await axios.put(`http://192.168.125.28:3001/api/incidents/${incidentId}/resolve`, {
+            resolved_by: username
+          });
+          
+          // Update local state for reported incidents
+          setReportedIncidents(prevIncidents => 
+            prevIncidents.map(incident => 
+              incident.id === incidentId 
+                ? { ...incident, status: 'Resolved', resolved_by: username }
+                : incident
+            )
+          );
+          
+          // Auto-mark as viewed since current user resolved it
+          await markReportedIncidentAsViewed(incidentId);
+          
+          Alert.alert("Success", "Incident marked as resolved");
+        } catch (error) {
+          console.error("Error resolving incident:", error);
+          Alert.alert("Error", "Failed to resolve incident");
+        }
+      };
+
+  // Updated showReportedIncidentDetails function
+const showReportedIncidentDetails = (incident: IncidentReport) => {
+  const incidentDetails = `Incident Type: ${incident.type}
+Location: ${incident.location}
+Status: ${incident.status}${incident.assigned ? `
+Assigned To: ${incident.assigned}` : `
+Not yet assigned`}${incident.resolved_by ? `
+Resolved By: ${incident.resolved_by}` : ''}`;
+
   const buttons: Array<{
     text: string;
     style?: "default" | "cancel" | "destructive";
@@ -249,8 +425,8 @@ Status: ${incident.status}`;
     { text: "Cancel", style: "cancel" }
   ];
 
-  // Only show resolve button if incident is not already resolved
-  if (incident.status !== 'Resolved') {
+  // Only show resolve button if user is Tanod and incident is not already resolved
+  if (userRole === 'Tanod' && incident.status !== 'Resolved') {
     buttons.push({
       text: "Mark as Resolved",
       onPress: () => {
@@ -261,7 +437,7 @@ Status: ${incident.status}`;
             { text: "Cancel", style: "cancel" },
             {
               text: "Confirm",
-              onPress: () => resolveIncident(incident.id),
+              onPress: () => resolveReportedIncident(incident.id),
             },
           ]
         );
@@ -269,25 +445,29 @@ Status: ${incident.status}`;
     });
   }
 
-  Alert.alert("You've Been Assigned", incidentDetails, buttons);
+  Alert.alert("Your Report", incidentDetails, buttons);
 };
 
-  // Add function to render incident notification item
-  const renderIncidentItem = (incident: IncidentReport, isNew: boolean) => {
+  // Render assigned incident item
+  const renderAssignedIncidentItem = (incident: IncidentReport, isNew: boolean) => {
     const date = new Date(incident.created_at).toLocaleDateString();
     const time = new Date(incident.created_at).toLocaleTimeString();
     const isResolved = incident.status === 'Resolved';
+    const resolvedByCurrentUser = incident.resolved_by === username;
+    const isUnresolvedButViewed = !isResolved && !isNew;
     
     return (
       <TouchableOpacity
-        key={`incident_${incident.id}`}
+        key={`assigned_${incident.id}`}
         style={[
           styles.notificationItem,
-          isNew ? styles.newNotification : styles.viewedNotification
+          isNew ? styles.newNotification : styles.viewedNotification,
+          resolvedByCurrentUser && styles.resolvedByMeNotification,
+          isUnresolvedButViewed && styles.unresolvedViewedNotification
         ]}
         onPress={() => {
-          markIncidentAsViewed(incident.id);
-          showIncidentDetails(incident);
+          markAssignedIncidentAsViewed(incident.id);
+          showAssignedIncidentDetails(incident);
         }}
       >
         <View style={styles.notificationHeader}>
@@ -295,33 +475,121 @@ Status: ${incident.status}`;
             <Ionicons 
               name={isResolved ? "checkmark-circle" : (isNew ? "alert-circle" : "alert-circle-outline")} 
               size={20} 
-              color={isResolved ? "#4CAF50" : (isNew ? "#FF5722" : "#666")} 
+              color={isResolved ? "#4CAF50" : (isNew ? "#FF5722" : (isUnresolvedButViewed ? "#FF9800" : "#666"))} 
             />
           </View>
           <View style={styles.notificationContent}>
-            <Text style={[styles.notificationTitle, isNew && styles.newIncidentTitle]}>
-              Incident Assignment: {incident.type}
+            <Text style={[
+              styles.notificationTitle, 
+              isNew && styles.newIncidentTitle,
+              isUnresolvedButViewed && styles.unresolvedViewedTitle
+            ]}>
+              🚨 Assigned: {incident.type}
             </Text>
             <Text style={styles.notificationDate}>
               {date} at {time}
             </Text>
-              <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
               <Ionicons name="location-sharp" size={14} color="#FF9800" style={{ marginRight: 4 }} />
               <Text style={styles.notificationLocation}>{incident.location}</Text>
-              </View>
+            </View>
             <Text style={[
               styles.notificationLocation,
-              isResolved && { color: "#4CAF50", fontWeight: "bold" }
+              isResolved && { color: "#4CAF50", fontWeight: "bold" },
+              isUnresolvedButViewed && { color: "#FF9800", fontWeight: "bold" }
             ]}>
-               Status: {incident.status}
+              Status: {incident.status}
             </Text>
             <Text style={styles.incidentReporter}>
               Reported by: {incident.reported_by}
             </Text>
+            {resolvedByCurrentUser && (
+              <Text style={styles.resolvedByMeText}>
+                ✓ Resolved by you
+              </Text>
+            )}
+            {isUnresolvedButViewed && (
+              <Text style={styles.unresolvedViewedText}>
+                ⚠️ Needs attention
+              </Text>
+            )}
           </View>
           {isNew && <View style={styles.newIncidentBadge} />}
+          {isUnresolvedButViewed && <View style={styles.unresolvedViewedBadge} />}
         </View>
+      </TouchableOpacity>
+    );
+  };
 
+  // Render reported incident item
+  const renderReportedIncidentItem = (incident: IncidentReport, isNew: boolean) => {
+    const date = new Date(incident.created_at).toLocaleDateString();
+    const time = new Date(incident.created_at).toLocaleTimeString();
+    const isResolved = incident.status === 'Resolved';
+    const isUnresolvedButViewed = !isResolved && !isNew;
+    
+    return (
+      <TouchableOpacity
+        key={`reported_${incident.id}`}
+        style={[
+          styles.notificationItem,
+          isNew ? styles.newReportedNotification : styles.viewedNotification,
+          isUnresolvedButViewed && styles.unresolvedViewedNotification
+        ]}
+        onPress={() => {
+          markReportedIncidentAsViewed(incident.id);
+          showReportedIncidentDetails(incident);
+        }}
+      >
+        <View style={styles.notificationHeader}>
+          <View style={styles.notificationIcon}>
+            <Ionicons 
+              name={isResolved ? "checkmark-circle" : (isNew ? "document-text" : "document-text-outline")} 
+              size={20} 
+              color={isResolved ? "#4CAF50" : (isNew ? "#2196F3" : (isUnresolvedButViewed ? "#FF9800" : "#666"))} 
+            />
+          </View>
+          <View style={styles.notificationContent}>
+            <Text style={[
+              styles.notificationTitle, 
+              isNew && styles.newReportedTitle,
+              isUnresolvedButViewed && styles.unresolvedViewedTitle
+            ]}>
+              📋 Your Report: {incident.type}
+            </Text>
+            <Text style={styles.notificationDate}>
+              {date} at {time}
+            </Text>
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <Ionicons name="location-sharp" size={14} color="#2196F3" style={{ marginRight: 4 }} />
+              <Text style={styles.notificationLocation}>{incident.location}</Text>
+            </View>
+            <Text style={[
+              styles.notificationLocation,
+              isResolved && { color: "#4CAF50", fontWeight: "bold" },
+              isUnresolvedButViewed && { color: "#FF9800", fontWeight: "bold" }
+            ]}>
+              Status: {incident.status}
+            </Text>
+            {incident.assigned && (
+              <Text style={styles.incidentReporter}>
+                Assigned to: {incident.assigned}
+              </Text>
+            )}
+            {!incident.assigned && (
+              <Text style={[styles.incidentReporter, { color: "#FF9800" }]}>
+                Not yet assigned
+              </Text>
+            )}
+            {isUnresolvedButViewed && (
+              <Text style={styles.unresolvedViewedText}>
+                ⏳ Awaiting response
+              </Text>
+            )}
+          </View>
+          {isNew && <View style={styles.newReportedBadge} />}
+          {isUnresolvedButViewed && <View style={styles.unresolvedViewedBadge} />}
+        </View>
       </TouchableOpacity>
     );
   };
@@ -415,6 +683,17 @@ Status: ${incident.status}`;
     );
   }
 
+  // Calculate totals
+  const totalNewNotifications = newNotifications.length + 
+    assignedCategorized.newIncidents.length + 
+    reportedCategorized.newIncidents.length;
+  
+  const totalViewedNotifications = viewedNotificationsList.length + 
+    assignedCategorized.viewedUnresolved.length + 
+    assignedCategorized.resolved.length +
+    reportedCategorized.viewedUnresolved.length + 
+    reportedCategorized.resolved.length;
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -448,50 +727,70 @@ Status: ${incident.status}`;
         {/* Summary */}
         <View style={styles.summary}>
           <Text style={styles.summaryText}>
-            {newNotifications.length + newIncidents.length} new {viewedNotificationsList.length + viewedIncidentsList.length} viewed
+            {totalNewNotifications} new {totalViewedNotifications} viewed
           </Text>
         </View>
 
-        {logs.length === 0 && incidents.length === 0 ? (
+        {logs.length === 0 && assignedIncidents.length === 0 && reportedIncidents.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Ionicons name="notifications-off-outline" size={64} color="#ccc" />
             <Text style={styles.emptyText}>No notifications yet</Text>
             <Text style={styles.emptySubtext}>
-              Your activity logs will appear here
+              Your activity logs and incident updates will appear here
             </Text>
           </View>
         ) : (
           <>
-            {/* New Incident Assignments */}
-            {newIncidents.length > 0 && (
+            {/* New Assigned Incidents */}
+            {assignedCategorized.newIncidents.length > 0 && (
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>
-                  🚨 New Incident Assignments ({newIncidents.length})
+                  🚨 New Incident Assignments ({assignedCategorized.newIncidents.length})
                 </Text>
-                {newIncidents.map(incident => renderIncidentItem(incident, true))}
+                {assignedCategorized.newIncidents.map(incident => renderAssignedIncidentItem(incident, true))}
               </View>
             )}
 
-            {/* New Notifications */}
+            {/* New Reported Incidents Updates */}
+            {reportedCategorized.newIncidents.length > 0 && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>
+                  📋 New Updates on Your Reports ({reportedCategorized.newIncidents.length})
+                </Text>
+                {reportedCategorized.newIncidents.map(incident => renderReportedIncidentItem(incident, true))}
+              </View>
+            )}
+
+            {/* New Activity Notifications */}
             {newNotifications.length > 0 && (
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>
-                  New ({newNotifications.length})
+                  🔔 New Activity ({newNotifications.length})
                 </Text>
                 {newNotifications.map(log => renderNotificationItem(log, true))}
               </View>
             )}
 
-            {/* Earlier - Combined viewed notifications and incidents */}
-            {(viewedNotificationsList.length > 0 || viewedIncidentsList.length > 0) && (
+            {/* Earlier Section */}
+            {totalViewedNotifications > 0 && (
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>
-                  Earlier ({viewedNotificationsList.length + viewedIncidentsList.length})
+                  Earlier ({totalViewedNotifications})
                 </Text>
-                {/* Render viewed incidents first */}
-                {viewedIncidentsList.map(incident => renderIncidentItem(incident, false))}
-                {/* Then render viewed notifications */}
+                {/* Viewed unresolved assigned incidents (priority) */}
+                {assignedCategorized.viewedUnresolved.map(incident => renderAssignedIncidentItem(incident, false))}
+                
+                {/* Viewed unresolved reported incidents */}
+                {reportedCategorized.viewedUnresolved.map(incident => renderReportedIncidentItem(incident, false))}
+                
+                {/* Viewed activity notifications */}
                 {viewedNotificationsList.map(log => renderNotificationItem(log, false))}
+                
+                {/* Resolved assigned incidents */}
+                {assignedCategorized.resolved.map(incident => renderAssignedIncidentItem(incident, false))}
+                
+                {/* Resolved reported incidents */}
+                {reportedCategorized.resolved.map(incident => renderReportedIncidentItem(incident, false))}
               </View>
             )}
           </>
@@ -592,6 +891,11 @@ const styles = StyleSheet.create({
   viewedNotification: {
     backgroundColor: "#fff",
   },
+  resolvedByMeNotification: {
+    backgroundColor: "#f0f8ff",
+    borderLeftWidth: 4,
+    borderLeftColor: "#2196F3",
+  },
   notificationHeader: {
     flexDirection: "row",
     alignItems: "flex-start",
@@ -665,6 +969,50 @@ const styles = StyleSheet.create({
     backgroundColor: "#FF5722",
     marginTop: 5,
   },
+  resolvedByMeText: {
+    fontSize: 12,
+    color: "#2196F3",
+    fontWeight: "bold" as const,
+    marginTop: 4,
+  },
+  unresolvedViewedNotification: {
+    backgroundColor: "#fff8e1",
+    borderLeftWidth: 4,
+    borderLeftColor: "#FF9800",
+  },
+  unresolvedViewedTitle: {
+    fontWeight: "bold" as const,
+    color: "#E65100",
+  },
+  unresolvedViewedText: {
+    fontSize: 12,
+    color: "#FF9800",
+    fontWeight: "bold" as const,
+    marginTop: 4,
+  },
+  unresolvedViewedBadge: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#FF9800",
+    marginTop: 5,
+  },
+  newReportedNotification: {
+  backgroundColor: "#f0f8ff",
+  borderLeftWidth: 4,
+  borderLeftColor: "#2196F3",
+},
+newReportedTitle: {
+  fontWeight: "bold",
+  color: "#1565C0",
+},
+newReportedBadge: {
+  width: 8,
+  height: 8,
+  borderRadius: 4,
+  backgroundColor: "#2196F3",
+  marginTop: 5,
+},
 });
 
 export default Notifications;

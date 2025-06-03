@@ -99,7 +99,7 @@ const Register: React.FC = () => {
       });
 
       if (response.data.success) {
-        Alert.alert("Success", "Account created successfully");
+        Alert.alert("Success", "Account created successfully. Please wait for admin approval", );
         navigation.replace("Login");
       } else {
         Alert.alert("Error", response.data.message || "Registration failed");
