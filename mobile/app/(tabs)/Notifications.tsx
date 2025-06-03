@@ -408,13 +408,41 @@ Status: ${incident.status}${incident.resolved_by ? `\nResolved By: ${incident.re
         }
       };
 
+// Add this function after the existing resolveReportedIncident function
+const resolveReportedIncidentAsAdmin = async (incidentId: number) => {
+  try {
+    await axios.put(`http://192.168.125.28:3001/api/incidents/${incidentId}/resolve`, {
+      resolved_by: 'Admin'
+    });
+    
+    // Update local state for reported incidents
+    setReportedIncidents(prevIncidents => 
+      prevIncidents.map(incident => 
+        incident.id === incidentId 
+          ? { ...incident, status: 'Resolved', resolved_by: 'Admin' }
+          : incident
+      )
+    );
+    
+    // Auto-mark as viewed since admin resolved it
+    await markReportedIncidentAsViewed(incidentId);
+    
+    Alert.alert("Success", "Incident marked as resolved by Admin");
+  } catch (error) {
+    console.error("Error resolving incident as admin:", error);
+    Alert.alert("Error", "Failed to resolve incident");
+  }
+};
+
   // Updated showReportedIncidentDetails function
 const showReportedIncidentDetails = (incident: IncidentReport) => {
   const incidentDetails = `Incident Type: ${incident.type}
 Location: ${incident.location}
-Status: ${incident.status}${incident.assigned ? `
+Status: ${incident.status === 'Resolved' && incident.resolved_by === 'Admin' 
+  ? 'Marked as Resolved by Admin' 
+  : incident.status}${incident.assigned ? `
 Assigned To: ${incident.assigned}` : `
-Not yet assigned`}${incident.resolved_by ? `
+Not yet assigned`}${incident.resolved_by && incident.resolved_by !== 'Admin' ? `
 Resolved By: ${incident.resolved_by}` : ''}`;
 
   const buttons: Array<{
@@ -425,7 +453,7 @@ Resolved By: ${incident.resolved_by}` : ''}`;
     { text: "Cancel", style: "cancel" }
   ];
 
-  // Only show resolve button if user is Tanod and incident is not already resolved
+  // Show resolve button for Tanod if incident is not already resolved
   if (userRole === 'Tanod' && incident.status !== 'Resolved') {
     buttons.push({
       text: "Mark as Resolved",
@@ -445,9 +473,28 @@ Resolved By: ${incident.resolved_by}` : ''}`;
     });
   }
 
+  // Show admin resolve button for Admin if incident is not already resolved
+  if (userRole === 'Admin' && incident.status !== 'Resolved') {
+    buttons.push({
+      text: "Mark as Resolved (Admin)",
+      onPress: () => {
+        Alert.alert(
+          "Confirm Admin Resolution",
+          "Are you sure you want to mark this incident as resolved by Admin?",
+          [
+            { text: "Cancel", style: "cancel" },
+            {
+              text: "Confirm",
+              onPress: () => resolveReportedIncidentAsAdmin(incident.id),
+            },
+          ]
+        );
+      },
+    });
+  }
+
   Alert.alert("Your Report", incidentDetails, buttons);
 };
-
   // Render assigned incident item
   const renderAssignedIncidentItem = (incident: IncidentReport, isNew: boolean) => {
     const date = new Date(incident.created_at).toLocaleDateString();
@@ -565,22 +612,24 @@ Resolved By: ${incident.resolved_by}` : ''}`;
               <Text style={styles.notificationLocation}>{incident.location}</Text>
             </View>
             <Text style={[
-              styles.notificationLocation,
-              isResolved && { color: "#4CAF50", fontWeight: "bold" },
-              isUnresolvedButViewed && { color: "#FF9800", fontWeight: "bold" }
-            ]}>
-              Status: {incident.status}
-            </Text>
-            {incident.assigned && (
-              <Text style={styles.incidentReporter}>
-                Assigned to: {incident.assigned}
+                styles.notificationLocation,
+                isResolved && { color: "#4CAF50", fontWeight: "bold" },
+                isUnresolvedButViewed && { color: "#FF9800", fontWeight: "bold" }
+              ]}>
+                Status: {incident.status === 'Resolved' && incident.resolved_by === 'Admin' 
+                  ? 'Marked as Resolved by Admin' 
+                  : incident.status}
               </Text>
-            )}
-            {!incident.assigned && (
-              <Text style={[styles.incidentReporter, { color: "#FF9800" }]}>
-                Not yet assigned
-              </Text>
-            )}
+                          {incident.assigned && (
+                <Text style={styles.incidentReporter}>
+                  Assigned to: {incident.assigned}
+                </Text>
+              )}
+              {!incident.assigned && !(incident.status === 'Resolved' && incident.resolved_by === 'Admin') && (
+                <Text style={[styles.incidentReporter, { color: "#FF9800" }]}>
+                  Not yet assigned
+                </Text>
+              )}
             {isUnresolvedButViewed && (
               <Text style={styles.unresolvedViewedText}>
                 ⏳ Awaiting response

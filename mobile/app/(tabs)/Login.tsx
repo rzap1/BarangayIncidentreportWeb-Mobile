@@ -25,8 +25,8 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 const Login: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
 
-  const [username, setUsername] = useState("Frank");
-  const [password, setPassword] = useState("frank");  
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");  
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {

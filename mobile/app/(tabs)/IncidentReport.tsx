@@ -536,9 +536,7 @@ const IncidentReport: React.FC = () => {
       <View style={styles.container}>
         {/* Updated NavBar Header to match NavBar component style */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={24} color="#fff" />
-          </TouchableOpacity>
+          
           <Text style={styles.headerTitle}>
             {isViewMode ? 'Incident Details' : 'Report Incident'}
           </Text>

@@ -28,8 +28,8 @@ export type RootStackParamList = {
   Home: { username: string };
   IncidentReport: { 
     username: string;
-    incidentId?: number; // Add optional parameter for viewing existing incidents
-    isViewMode?: boolean; // Add optional parameter to determine if in view mode
+    incidentId?: number; 
+    isViewMode?: boolean; 
   };
   Profile: { username: string };
   TimeIn: { username: string };

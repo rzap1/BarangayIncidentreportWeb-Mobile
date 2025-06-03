@@ -1,12 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import './Navbar.css'; // Assuming you have a CSS file for styling
+import './Navbar.css';
 
-// Profile Modal Component
+// Profile Modal Component (keeping the same as before)
 const UserProfileModal = ({ isOpen, onClose, userProfile, onSave }) => {
   const [formData, setFormData] = useState({
     image: '',
-    imageFile: null, // Store the actual file for upload
+    imageFile: null,
     fullName: userProfile?.NAME || '',
     username: userProfile?.USERNAME || localStorage.getItem('username') || '',
     password: '',
@@ -14,7 +14,6 @@ const UserProfileModal = ({ isOpen, onClose, userProfile, onSave }) => {
     email: userProfile?.EMAIL || ''
   });
 
-  // Update form data when userProfile changes
   useEffect(() => {
     if (userProfile) {
       setFormData({
@@ -62,10 +61,8 @@ const UserProfileModal = ({ isOpen, onClose, userProfile, onSave }) => {
     }
 
     try {
-      // Create FormData for multipart form submission (to handle image upload)
       const formDataToSend = new FormData();
       
-      // Only add fields that have values and are different from original
       const originalData = {
         name: userProfile?.NAME || '',
         username: userProfile?.USERNAME || '',
@@ -73,7 +70,6 @@ const UserProfileModal = ({ isOpen, onClose, userProfile, onSave }) => {
         email: userProfile?.EMAIL || ''
       };
 
-      // Check and add only changed fields
       if (formData.fullName.trim() && formData.fullName.trim() !== originalData.name) {
         formDataToSend.append('name', formData.fullName.trim());
       }
@@ -94,12 +90,10 @@ const UserProfileModal = ({ isOpen, onClose, userProfile, onSave }) => {
         formDataToSend.append('email', formData.email.trim());
       }
       
-      // Add image if selected
       if (formData.imageFile) {
         formDataToSend.append('image', formData.imageFile);
       }
 
-      // Check if there's anything to update
       const hasChanges = Array.from(formDataToSend.keys()).length > 0;
       if (!hasChanges) {
         alert('No changes detected.');
@@ -111,7 +105,7 @@ const UserProfileModal = ({ isOpen, onClose, userProfile, onSave }) => {
 
       const response = await fetch(`http://192.168.125.28:3001/api/user/${username}`, {
         method: 'PUT',
-        body: formDataToSend, // Don't set Content-Type header for FormData
+        body: formDataToSend,
       });
 
       const result = await response.json();
@@ -119,17 +113,14 @@ const UserProfileModal = ({ isOpen, onClose, userProfile, onSave }) => {
       if (response.ok && result.success) {
         console.log('Profile updated successfully:', result);
         
-        // Update localStorage if username changed
         if (formData.username.trim() && formData.username.trim() !== originalData.username) {
           localStorage.setItem('username', formData.username.trim());
         }
         
-        // Update userImage in localStorage if image was updated
         if (result.image) {
           localStorage.setItem('userImage', result.image);
         }
         
-        // Call the onSave callback to refresh the parent component
         if (onSave) {
           onSave();
         }
@@ -147,13 +138,11 @@ const UserProfileModal = ({ isOpen, onClose, userProfile, onSave }) => {
   };
 
   const handleBackdropClick = (e) => {
-    // Close modal only if clicking on the backdrop (not the modal content)
     if (e.target === e.currentTarget) {
       onClose();
     }
   };
 
-  // Prevent body scroll when modal is open
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
@@ -161,7 +150,6 @@ const UserProfileModal = ({ isOpen, onClose, userProfile, onSave }) => {
       document.body.style.overflow = 'unset';
     }
     
-    // Cleanup on unmount
     return () => {
       document.body.style.overflow = 'unset';
     };
@@ -175,7 +163,6 @@ const UserProfileModal = ({ isOpen, onClose, userProfile, onSave }) => {
       onClick={handleBackdropClick}
     >
       <div className="modal-container">
-        {/* Blue Header */}
         <div className="modal-header">
           <h2 className="modal-title">User Profile</h2>
           <button 
@@ -187,10 +174,8 @@ const UserProfileModal = ({ isOpen, onClose, userProfile, onSave }) => {
           </button>
         </div>
 
-        {/* Modal Content */}
         <div className="modal">
           <div className="modal-form">
-            {/* Image Upload Section */}
             <div className="image-upload-section">
               <div className="image-preview-container">
                 <div className="image-preview">
@@ -219,11 +204,8 @@ const UserProfileModal = ({ isOpen, onClose, userProfile, onSave }) => {
               </div>
             </div>
 
-            {/* Form Fields */}
             <div className="form-field">
-              <label className="field-label">
-                Full Name
-              </label>
+              <label className="field-label">Full Name</label>
               <input
                 type="text"
                 name="fullName"
@@ -235,9 +217,7 @@ const UserProfileModal = ({ isOpen, onClose, userProfile, onSave }) => {
             </div>
 
             <div className="form-field">
-              <label className="field-label">
-                Username
-              </label>
+              <label className="field-label">Username</label>
               <input
                 type="text"
                 name="username"
@@ -249,9 +229,7 @@ const UserProfileModal = ({ isOpen, onClose, userProfile, onSave }) => {
             </div>
 
             <div className="form-field">
-              <label className="field-label">
-                Password
-              </label>
+              <label className="field-label">Password</label>
               <input
                 type="password"
                 name="password"
@@ -263,9 +241,7 @@ const UserProfileModal = ({ isOpen, onClose, userProfile, onSave }) => {
             </div>
 
             <div className="form-field">
-              <label className="field-label">
-                Address
-              </label>
+              <label className="field-label">Address</label>
               <textarea
                 name="address"
                 value={formData.address}
@@ -277,9 +253,7 @@ const UserProfileModal = ({ isOpen, onClose, userProfile, onSave }) => {
             </div>
 
             <div className="form-field">
-              <label className="field-label">
-                Email Address
-              </label>
+              <label className="field-label">Email Address</label>
               <input
                 type="email"
                 name="email"
@@ -290,7 +264,6 @@ const UserProfileModal = ({ isOpen, onClose, userProfile, onSave }) => {
               />
             </div>
 
-            {/* Action Buttons */}
             <div className="modal-actions">
               <button
                 type="button"
@@ -318,7 +291,12 @@ const Navbar = ({ currentUser }) => {
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [userProfile, setUserProfile] = useState(null);
+  const [newIncidentCount, setNewIncidentCount] = useState(0);
   const location = useLocation();
+
+  // Alert system state and refs
+  const previousIncidentsCountRef = useRef(0);
+  const isInitialLoadRef = useRef(true);
 
   const navigationItems = [
     { path: '/incident-report', label: 'Incident Report' },
@@ -327,6 +305,136 @@ const Navbar = ({ currentUser }) => {
     { path: '/patrol-logs', label: 'Patrol Logs' },
     { path: '/accounts', label: 'Accounts' },
   ];
+
+  // Emergency alert sound function - CENTRALIZED HERE
+  const playAlertSound = async () => {
+    try {
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      
+      const createUrgentBeep = (frequency, startTime, duration, volume = 0.5) => {
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.setValueAtTime(frequency, startTime);
+        oscillator.type = 'square';
+        
+        gainNode.gain.setValueAtTime(0, startTime);
+        gainNode.gain.linearRampToValueAtTime(volume, startTime + 0.01);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+        
+        oscillator.start(startTime);
+        oscillator.stop(startTime + duration);
+      };
+      
+      const now = audioContext.currentTime;
+      
+      // 🚨 EMERGENCY ALERT PATTERN 🚨
+      createUrgentBeep(1200, now, 0.1);        // High beep 1
+      createUrgentBeep(1200, now + 0.15, 0.1); // High beep 2  
+      createUrgentBeep(1200, now + 0.3, 0.1);  // High beep 3
+      
+      createUrgentBeep(700, now + 0.6, 0.3);   // Lower warning tone
+      
+      createUrgentBeep(1200, now + 1.0, 0.1);  // High beep 4
+      createUrgentBeep(1200, now + 1.15, 0.1); // High beep 5
+      createUrgentBeep(1200, now + 1.3, 0.1);  // High beep 6
+      
+      console.log('🚨 EMERGENCY INCIDENT ALERT PLAYED 🚨');
+      
+      // Browser notification as backup
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification('🚨 NEW INCIDENT ALERT', {
+          body: 'Emergency: New incident report requires immediate attention!',
+          icon: '🚨',
+          tag: 'emergency-incident',
+          requireInteraction: true,
+          timestamp: Date.now()
+        });
+      }
+      
+    } catch (error) {
+      console.warn('Could not play emergency alert:', error);
+      
+      // Fallback: Browser notification only
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification('🚨 NEW INCIDENT ALERT', {
+          body: 'New incident report requires attention (audio failed)',
+          icon: '🚨',
+          tag: 'emergency-incident'
+        });
+      }
+      
+      // Visual fallback
+      const originalTitle = document.title;
+      document.title = '🚨 EMERGENCY INCIDENT!';
+      setTimeout(() => {
+        document.title = originalTitle;
+      }, 5000);
+    }
+  };
+
+  // Monitor incidents for new alerts - CENTRALIZED HERE
+  useEffect(() => {
+    // Request notification permission on component mount
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+
+    const monitorIncidents = () => {
+      fetch("http://192.168.125.28:3001/api/incidents")
+        .then(res => res.json())
+        .then(data => {
+          const currentCount = data.length;
+          
+          // Check if there are new incidents (only after initial load)
+          if (!isInitialLoadRef.current && currentCount > previousIncidentsCountRef.current) {
+            const newIncidentsCount = currentCount - previousIncidentsCountRef.current;
+            console.log(`${newIncidentsCount} new incident(s) detected!`);
+            
+            // Update notification badge
+            setNewIncidentCount(prev => prev + newIncidentsCount);
+            
+            // Play alert sound - THIS WILL NOW WORK FROM ANY PAGE
+            playAlertSound();
+          }
+          
+          // Update the previous count
+          previousIncidentsCountRef.current = currentCount;
+          
+          // Mark that initial load is complete
+          if (isInitialLoadRef.current) {
+            isInitialLoadRef.current = false;
+          }
+        })
+        .catch(err => {
+          console.error("Failed to fetch incidents:", err);
+        });
+    };
+
+    // Initial fetch
+    monitorIncidents();
+
+    // Set interval for auto-refresh (every 3 seconds)
+    const intervalId = setInterval(monitorIncidents, 3000);
+
+    // Clear interval on component unmount
+    return () => clearInterval(intervalId);
+  }, []);
+
+  // Clear notification count when visiting incident report page
+  useEffect(() => {
+    if (location.pathname === '/incident-report' && newIncidentCount > 0) {
+      // Clear the notification count after a short delay to allow page load
+      const timeoutId = setTimeout(() => {
+        setNewIncidentCount(0);
+      }, 1000);
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [location.pathname, newIncidentCount]);
 
   // Fetch user profile data including image
   const fetchUserProfile = async () => {
@@ -350,7 +458,6 @@ const Navbar = ({ currentUser }) => {
           console.log('Fetched user data:', userData);
           setUserProfile(userData);
           
-          // Store the IMAGE in localStorage if it exists and isn't already stored
           if (userData.IMAGE && !localStorage.getItem('userImage')) {
             localStorage.setItem('userImage', userData.IMAGE);
           }
@@ -392,17 +499,13 @@ const Navbar = ({ currentUser }) => {
   }, []);
 
   const handleLogout = () => {
-    // Clear all stored data
     localStorage.removeItem('username');
     localStorage.removeItem('userRole');
     localStorage.removeItem('token');
     localStorage.removeItem('userId');
     localStorage.removeItem('userImage');
-    
-    // Optional: Clear all localStorage
     localStorage.clear();
     
-    // Redirect to login page
     window.location.href = '/login';
     setShowProfileDropdown(false);
   };
@@ -413,7 +516,6 @@ const Navbar = ({ currentUser }) => {
   };
 
   const handleProfileSave = () => {
-    // Refresh user profile data after successful update
     fetchUserProfile();
   };
 
@@ -421,16 +523,13 @@ const Navbar = ({ currentUser }) => {
     return location.pathname === path;
   };
 
-  // Function to get avatar source
   const getAvatarSrc = () => {
-    // First, try to get from localStorage (faster)
     const storedImage = localStorage.getItem('userImage');
     if (storedImage && storedImage.trim() !== '') {
       console.log('Using stored image:', storedImage);
       return `http://192.168.125.28:3001/uploads/${storedImage}`;
     }
     
-    // Then check if userProfile exists and has IMAGE field with actual value
     if (userProfile && userProfile.IMAGE && userProfile.IMAGE.trim() !== '') {
       console.log('Using profile image:', userProfile.IMAGE);
       return `http://192.168.125.28:3001/uploads/${userProfile.IMAGE}`;
@@ -458,15 +557,31 @@ const Navbar = ({ currentUser }) => {
                       isActiveRoute(item.path)
                         ? 'border-indigo-500 text-indigo-600 hover:text-indigo-700'
                         : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
-                    } inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium`}
+                    } inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium relative`}
                   >
                     {item.label}
+                    {/* Show notification badge on Incident Report link */}
+                    {item.path === '/incident-report' && newIncidentCount > 0 && (
+                      <span className="absolute -top-1 -right-1 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 bg-red-600 rounded-full animate-pulse">
+                        {newIncidentCount > 99 ? '99+' : newIncidentCount}
+                      </span>
+                    )}
                   </Link>
                 ))}
               </nav>
             </div>
 
             <div className="flex items-center">
+              {/* Alert indicator */}
+              {newIncidentCount > 0 && (
+                <div className="mr-4 flex items-center space-x-2 text-red-600 animate-pulse">
+                  <span className="text-lg">🚨</span>
+                  <span className="text-sm font-medium">
+                    {newIncidentCount} New Alert{newIncidentCount > 1 ? 's' : ''}
+                  </span>
+                </div>
+              )}
+              
               <div className="user-avatar-container">
                 <div className="avatar-wrapper" onClick={toggleProfileDropdown}>
                   <img
@@ -475,7 +590,6 @@ const Navbar = ({ currentUser }) => {
                     alt="User avatar"
                     onError={(e) => {
                       console.log('Image failed to load, using placeholder');
-                      // Fallback to placeholder if image fails to load
                       e.target.src = "https://via.placeholder.com/32";
                     }}
                   />

@@ -23,6 +23,7 @@ const screenWidth = Dimensions.get("window").width;
 interface NavBarProps {
   username?: string;
   userImage?: string | null;
+  userRole?: string;
 }
 
 interface LogEntry {
@@ -43,9 +44,10 @@ interface IncidentReport {
   status: string;
   assigned: string;
   created_at: string;
+  resolved_by?: string;
 }
 
-const NavBar: React.FC<NavBarProps> = ({ username, userImage }) => {
+const NavBar: React.FC<NavBarProps> = ({ username, userImage, userRole }) => {
   const [sidebarVisible, setSidebarVisible] = useState(false);
   const [userMenuVisible, setUserMenuVisible] = useState(false);
   const [notificationCount, setNotificationCount] = useState(0);
@@ -60,6 +62,7 @@ const NavBar: React.FC<NavBarProps> = ({ username, userImage }) => {
   const [unreadIncidentIds, setUnreadIncidentIds] = useState<Set<number>>(new Set());
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
+ const [filterStatus, setFilterStatus] = useState<'all' | 'assigned' | 'resolved'>('all');
   // Load saved state from AsyncStorage
   useEffect(() => {
     const loadSavedState = async () => {
@@ -276,11 +279,11 @@ const NavBar: React.FC<NavBarProps> = ({ username, userImage }) => {
 
   // Helper function to format incident display text - CHANGED "Header Type" to "Incident Type"
   const getIncidentDisplayText = (incident: IncidentReport) => {
-    return `Incident Type: ${incident.type}
-Reported By: ${incident.reported_by}
-Location: ${incident.location}
-Status: ${incident.status}`;
-  };
+          return `Incident Type: ${incident.type}
+      Reported By: ${incident.reported_by}
+      Location: ${incident.location}
+      Status: ${incident.status}`;
+        };
 
   // Helper function to format log display text
   const getLogDisplayText = (log: LogEntry) => {
@@ -458,12 +461,14 @@ Status: ${incident.status}`;
       )}
 
       <Animated.View style={[styles.sidebar, { left: sidebarAnim }]}>
-        <View style={styles.sidebarHeader}>
-          <Text style={styles.sidebarTitle}>Patrol Net</Text>
-          <TouchableOpacity onPress={() => setSidebarVisible(false)}>
-            <Ionicons name="arrow-back" size={24} color="#fff" />
-          </TouchableOpacity>
-        </View>
+      <View style={styles.sidebarHeader}>
+  <Text style={styles.sidebarTitle}>Patrol Net</Text>
+  {userRole === "Resident" && (
+    <TouchableOpacity onPress={() => setSidebarVisible(false)}>
+      <Ionicons name="arrow-back" size={24} color="#fff" />
+    </TouchableOpacity>
+  )}
+</View>
 
         <TouchableOpacity
           style={styles.sidebarItem}

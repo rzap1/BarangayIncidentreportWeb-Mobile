@@ -290,7 +290,7 @@ app.get("/api/user/:username", (req, res) => {
     return res.status(400).json({ error: "Username is required" });
   }
   
-  const sql = "SELECT ID, USER as USERNAME, NAME, EMAIL, ADDRESS, ROLE, STATUS, IMAGE FROM users WHERE USER = ?";
+  const sql = "SELECT ID, USER, NAME, EMAIL, ADDRESS, ROLE, STATUS, IMAGE FROM users WHERE USER = ?";
   
   db.query(sql, [username], (err, results) => {
     if (err) {
