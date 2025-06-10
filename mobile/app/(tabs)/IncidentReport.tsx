@@ -121,7 +121,7 @@ const IncidentReport: React.FC = () => {
   // Load existing incident data
   const loadIncidentData = async () => {
     try {
-      const response = await axios.get(`http://192.168.125.28:3001/api/incidents/${incidentId}`);
+      const response = await axios.get(`http://192.168.209.28:3001/api/incidents/${incidentId}`);
       const incident = response.data;
       
       setIncidentType(incident.type);
@@ -145,7 +145,7 @@ const IncidentReport: React.FC = () => {
       }
       
       if (incident.image_path) {
-        setImage(`http://192.168.125.28:3001/uploads/${incident.image_path}`);
+        setImage(`http://192.168.209.28:3001/uploads/${incident.image_path}`);
       }
       
       if (incident.created_at) {
@@ -177,7 +177,7 @@ const IncidentReport: React.FC = () => {
           text: "Confirm",
           onPress: async () => {
             try {
-              const response = await axios.put(`http://192.168.125.28:3001/api/incidents/${incidentId}/resolve`, {
+              const response = await axios.put(`http://192.168.209.28:3001/api/incidents/${incidentId}/resolve`, {
                 resolved_by: username,
                 resolved_at: new Date().toISOString()
               });
@@ -210,7 +210,7 @@ const IncidentReport: React.FC = () => {
     if (!username) return;
     
     try {
-      const response = await axios.get(`http://192.168.125.28:3001/api/logs/${username}`);
+      const response = await axios.get(`http://192.168.209.28:3001/api/logs/${username}`);
       const logs = response.data;
       
       console.log('Fetched logs for user:', username, 'Count:', logs.length);
@@ -460,7 +460,7 @@ const IncidentReport: React.FC = () => {
         } as any);
       }
 
-      const response = await fetch("http://192.168.125.28:3001/api/incidents", {
+      const response = await fetch("http://192.168.209.28:3001/api/incidents", {
         method: "POST",
         body: formData,
       });
@@ -562,7 +562,7 @@ const IncidentReport: React.FC = () => {
             >
               {userImage ? (
                 <Image 
-                  source={{ uri: `http://192.168.125.28:3001/uploads/${userImage}` }}
+                  source={{ uri: `http://192.168.209.28:3001/uploads/${userImage}` }}
                   style={styles.profileImage}
                   onError={() => console.log("Error loading profile image")}
                 />
@@ -602,7 +602,14 @@ const IncidentReport: React.FC = () => {
           )}
         </View>
 
-        <ScrollView contentContainerStyle={styles.body}>
+        <ScrollView 
+          contentContainerStyle={styles.body}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={true}
+          bounces={true}
+          scrollEventThrottle={16}
+          nestedScrollEnabled={true}
+        >
           <Text style={styles.reportTitle}>
             {isViewMode ? 'Incident Details' : 'Report an Incident'}
           </Text>
@@ -627,13 +634,16 @@ const IncidentReport: React.FC = () => {
           
           <Text style={styles.label}>Type of incident:</Text>
           <TextInput
-            style={[styles.input, isViewMode && styles.readOnlyInput]}
-            value={incidentType}
-            onChangeText={isViewMode ? undefined : setIncidentType}
-            placeholder={isViewMode ? "" : "Enter incident type"}
-            placeholderTextColor="#999"
-            editable={!isViewMode}
-          />
+                style={[styles.input, isViewMode && styles.readOnlyInput]}
+                value={incidentType}
+                onChangeText={isViewMode ? undefined : setIncidentType}
+                placeholder={isViewMode ? "" : "Enter incident type"}
+                placeholderTextColor="#999"
+                editable={!isViewMode}
+                scrollEnabled={false} // This is a TextInput prop, not a style
+                blurOnSubmit={true}
+                returnKeyType="done"
+              />
 
           <Text style={styles.label}>
             {isViewMode ? 'Reported Date & Time:' : 'Current Date & Time:'}
@@ -845,7 +855,9 @@ const styles = StyleSheet.create({
   
   body: { 
     padding: 20, 
-    backgroundColor: "#f5f6fa" 
+    backgroundColor: "#f5f6fa",
+    flexGrow: 1, 
+    paddingBottom: 40,
   },
   
   reportTitle: { 
@@ -898,6 +910,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
+    textAlignVertical: 'top',
   },
   
   readOnlyInput: {

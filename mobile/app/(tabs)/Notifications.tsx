@@ -127,7 +127,7 @@ const Notifications: React.FC = () => {
   // Fetch user logs from API
   const fetchLogs = async () => {
     try {
-      const response = await axios.get(`http://192.168.125.28:3001/api/logs/${username}`);
+      const response = await axios.get(`http://192.168.209.28:3001/api/logs/${username}`);
       setLogs(response.data || []);
       console.log(`Fetched ${response.data?.length || 0} logs for ${username}`);
     } catch (error) {
@@ -187,7 +187,7 @@ const Notifications: React.FC = () => {
   // Fetch assigned incidents
   const fetchAssignedIncidents = async () => {
     try {
-      const response = await axios.get(`http://192.168.125.28:3001/api/incidents/assigned/${username}`);
+      const response = await axios.get(`http://192.168.209.28:3001/api/incidents/assigned/${username}`);
       const fetchedIncidents = response.data || [];
       setAssignedIncidents(fetchedIncidents);
       
@@ -214,7 +214,7 @@ const Notifications: React.FC = () => {
   // Fetch reported incidents
   const fetchReportedIncidents = async () => {
     try {
-      const response = await axios.get(`http://192.168.125.28:3001/api/incidents/reported/${username}`);
+      const response = await axios.get(`http://192.168.209.28:3001/api/incidents/reported/${username}`);
       const fetchedIncidents = response.data || [];
       setReportedIncidents(fetchedIncidents);
       
@@ -322,7 +322,7 @@ const Notifications: React.FC = () => {
   // Function to resolve incident (for assigned incidents only)
   const resolveIncident = async (incidentId: number) => {
     try {
-      await axios.put(`http://192.168.125.28:3001/api/incidents/${incidentId}/resolve`, {
+      await axios.put(`http://192.168.209.28:3001/api/incidents/${incidentId}/resolve`, {
         resolved_by: username
       });
       
@@ -385,7 +385,7 @@ Status: ${incident.status}${incident.resolved_by ? `\nResolved By: ${incident.re
 
       const resolveReportedIncident = async (incidentId: number) => {
         try {
-          await axios.put(`http://192.168.125.28:3001/api/incidents/${incidentId}/resolve`, {
+          await axios.put(`http://192.168.209.28:3001/api/incidents/${incidentId}/resolve`, {
             resolved_by: username
           });
           
@@ -411,7 +411,7 @@ Status: ${incident.status}${incident.resolved_by ? `\nResolved By: ${incident.re
 // Add this function after the existing resolveReportedIncident function
 const resolveReportedIncidentAsAdmin = async (incidentId: number) => {
   try {
-    await axios.put(`http://192.168.125.28:3001/api/incidents/${incidentId}/resolve`, {
+    await axios.put(`http://192.168.209.28:3001/api/incidents/${incidentId}/resolve`, {
       resolved_by: 'Admin'
     });
     

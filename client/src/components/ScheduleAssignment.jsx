@@ -13,7 +13,7 @@ const ScheduleAssignment = () => {
   const [syncMessage, setSyncMessage] = useState('');
 
   // Base URL for your backend
-  const BASE_URL = 'http://192.168.125.28:3001';
+  const BASE_URL = 'http://192.168.209.28:3001';
 
   // Function to get image URL
   const getImageUrl = (imageName) => {

@@ -37,7 +37,7 @@ const Login: React.FC = () => {
 
     setLoading(true);
     try {
-        const response = await axios.post("http://192.168.125.28:3001/login", {
+        const response = await axios.post("http://192.168.209.28:3001/login", {
           username,
           password,
           clientType: 'mobile' // Specify this is a mobile client request
@@ -77,30 +77,36 @@ const Login: React.FC = () => {
             });
 
             // Role-based navigation
-            if (userData.role === 'Resident') {
-              // Redirect Residents to IncidentReport
-              navigation.navigate("IncidentReport", { username });
-            } else if (userData.role === 'Tanod') {
-              // Redirect Tanod to Home
-              navigation.navigate("Home", { 
-                username, 
-                userData: userData 
-              });
-            }
+              if (userData.role === 'Resident') {
+                // Redirect Residents to Home instead of IncidentReport
+                navigation.navigate("Home", { 
+                  username, 
+                  userData: userData 
+                });
+              } else if (userData.role === 'Tanod') {
+                // Redirect Tanod to Home
+                navigation.navigate("Home", { 
+                  username, 
+                  userData: userData 
+                });
+              }
 
           } catch (storageError) {
             console.error('Error storing user data:', storageError);
             Alert.alert("Warning", "Login successful but failed to save user data locally.");
             
             // Still perform role-based navigation even if storage fails
-            if (userData.role === 'Resident') {
-              navigation.navigate("IncidentReport", { username });
-            } else if (userData.role === 'Tanod') {
-              navigation.navigate("Home", { 
-                username, 
-                userData: userData 
-              });
-            }
+                if (userData.role === 'Resident') {
+                  navigation.navigate("Home", { 
+                    username, 
+                    userData: userData 
+                  });
+                } else if (userData.role === 'Tanod') {
+                  navigation.navigate("Home", { 
+                    username, 
+                    userData: userData 
+                  });
+                }
           }
         }
       } catch (error: any) {

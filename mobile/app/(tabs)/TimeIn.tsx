@@ -75,7 +75,7 @@ const TimeIn: React.FC = () => {
   const fetchUserTimeStatus = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`http://192.168.125.28:3001/api/user-time-status/${username}`);
+      const response = await fetch(`http://192.168.209.28:3001/api/user-time-status/${username}`);
       const data = await response.json();
       
       if (response.ok) {
@@ -132,7 +132,7 @@ const TimeIn: React.FC = () => {
             try {
               setSubmitting(true);
               
-              const response = await fetch('http://192.168.125.28:3001/api/time-record', {
+              const response = await fetch('http://192.168.209.28:3001/api/time-record', {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',

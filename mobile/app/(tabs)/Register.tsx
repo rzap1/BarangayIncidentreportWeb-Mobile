@@ -89,7 +89,7 @@ const Register: React.FC = () => {
 
     setLoading(true);
     try {
-      const response = await axios.post("http://192.168.125.28:3001/register", {
+      const response = await axios.post("http://192.168.209.28:3001/register", {
         username,
         password,
         role,

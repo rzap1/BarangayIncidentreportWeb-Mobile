@@ -46,7 +46,7 @@ const Home: React.FC = () => {
   
   const fetchUserData = async () => {
     try {
-      const response = await axios.get(`http://192.168.125.28:3001/api/user/${username}`);
+      const response = await axios.get(`http://192.168.209.28:3001/api/user/${username}`);
       
       if (response.data) {
         setUserData(response.data);
@@ -95,7 +95,13 @@ const Home: React.FC = () => {
   
   return (
      <View style={styles.container}>
-    <NavBar username={username} userImage={userData?.IMAGE} />
+
+        <NavBar 
+      username={username} 
+      userImage={userData?.IMAGE} 
+      userRole={userData?.ROLE}  // Add this line
+        />
+
     <View style={styles.body}>
       <Text style={styles.greeting}>Welcome back, {username}</Text>
       <Text style={styles.subGreeting}>Your community safety network</Text>

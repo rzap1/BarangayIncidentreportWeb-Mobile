@@ -17,7 +17,7 @@ const UserProfileModal = ({ isOpen, onClose, userProfile, onSave }) => {
   useEffect(() => {
     if (userProfile) {
       setFormData({
-        image: userProfile.IMAGE ? `http://192.168.125.28:3001/uploads/${userProfile.IMAGE}` : '',
+        image: userProfile.IMAGE ? `http://192.168.209.28:3001/uploads/${userProfile.IMAGE}` : '',
         imageFile: null,
         fullName: userProfile.NAME || '',
         username: userProfile.USERNAME || localStorage.getItem('username') || '',
@@ -103,7 +103,7 @@ const UserProfileModal = ({ isOpen, onClose, userProfile, onSave }) => {
 
       console.log('FormData to send:', Array.from(formDataToSend.entries()));
 
-      const response = await fetch(`http://192.168.125.28:3001/api/user/${username}`, {
+      const response = await fetch(`http://192.168.209.28:3001/api/user/${username}`, {
         method: 'PUT',
         body: formDataToSend,
       });
@@ -384,7 +384,7 @@ const Navbar = ({ currentUser }) => {
     }
 
     const monitorIncidents = () => {
-      fetch("http://192.168.125.28:3001/api/incidents")
+      fetch("http://192.168.209.28:3001/api/incidents")
         .then(res => res.json())
         .then(data => {
           const currentCount = data.length;
@@ -447,7 +447,7 @@ const Navbar = ({ currentUser }) => {
     
     if (username) {
       try {
-        const url = `http://192.168.125.28:3001/api/user/${username}`;
+        const url = `http://192.168.209.28:3001/api/user/${username}`;
         console.log('Fetching from URL:', url);
         
         const response = await fetch(url);
@@ -527,12 +527,12 @@ const Navbar = ({ currentUser }) => {
     const storedImage = localStorage.getItem('userImage');
     if (storedImage && storedImage.trim() !== '') {
       console.log('Using stored image:', storedImage);
-      return `http://192.168.125.28:3001/uploads/${storedImage}`;
+      return `http://192.168.209.28:3001/uploads/${storedImage}`;
     }
     
     if (userProfile && userProfile.IMAGE && userProfile.IMAGE.trim() !== '') {
       console.log('Using profile image:', userProfile.IMAGE);
-      return `http://192.168.125.28:3001/uploads/${userProfile.IMAGE}`;
+      return `http://192.168.209.28:3001/uploads/${userProfile.IMAGE}`;
     }
     
     console.log('No user image found, using placeholder');

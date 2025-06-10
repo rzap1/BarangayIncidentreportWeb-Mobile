@@ -46,7 +46,7 @@ function Accounts() {
 
   const fetchUsers = async () => {
     try {
-      const response = await fetch('http://192.168.125.28:3001/api/users');
+      const response = await fetch('http://192.168.209.28:3001/api/users');
       const data = await response.json();
       setAccounts(data);
     } catch (error) {
@@ -69,7 +69,7 @@ function Accounts() {
     if (!newAccount.name || !newAccount.username || !newAccount.password) return;
     
     try {
-      const response = await fetch('http://192.168.125.28:3001/register', {
+      const response = await fetch('http://192.168.209.28:3001/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -116,7 +116,7 @@ const handleEditAccount = async (e) => {
   if (!editAccount.name || !editAccount.username) return;
   
   try {
-    const response = await fetch(`http://192.168.125.28:3001/api/users/${editAccount.id}`, {
+    const response = await fetch(`http://192.168.209.28:3001/api/users/${editAccount.id}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -178,7 +178,7 @@ const handleEditAccount = async (e) => {
   }
   
   try {
-    const response = await fetch(`http://192.168.125.28:3001/api/users/${accountId}`, {
+    const response = await fetch(`http://192.168.209.28:3001/api/users/${accountId}`, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
